@@ -1,5 +1,6 @@
 package dev.eventcore;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -27,6 +28,9 @@ abstract class IntegrationTestBase {
 
     protected static final String ADMIN_TOKEN = "test-admin-token";
 
+    // One key for the whole test run; the database outlives individual Spring contexts.
+    private static String sharedApiKey;
+
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -38,13 +42,34 @@ abstract class IntegrationTestBase {
     @LocalServerPort
     private int port;
 
+    @Autowired
+    private ApiKeyStore apiKeys;
+
     protected RestClient api() {
         return RestClient.builder()
-                .baseUrl("http://localhost:" + port)
+                .baseUrl(baseUrl())
+                .defaultHeader("X-API-Key", testApiKey())
+                .build();
+    }
+
+    protected RestClient anonymousApi() {
+        return RestClient.builder()
+                .baseUrl(baseUrl())
                 .build();
     }
 
     protected int serverPort() {
         return port;
+    }
+
+    private String baseUrl() {
+        return "http://localhost:" + port;
+    }
+
+    private String testApiKey() {
+        if (sharedApiKey == null) {
+            sharedApiKey = apiKeys.issue("integration-tests").key();
+        }
+        return sharedApiKey;
     }
 }

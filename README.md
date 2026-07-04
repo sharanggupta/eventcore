@@ -36,10 +36,24 @@ Should return: `OK`
 
 ## API
 
+All `/v1/*` endpoints except key issuance require an API key in the
+`X-API-Key` header. Issue one with the admin token from `.env`:
+
+```bash
+curl -X POST http://localhost:8080/v1/api-keys \
+  -H "X-Admin-Token: $ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "my-service"}'
+```
+
+The response contains the plaintext key **once**; only its SHA-256 hash is
+stored. Requests without a valid key receive `401`.
+
 ### Ingest an event
 
 ```bash
 curl -X POST http://localhost:8080/v1/events \
+  -H "X-API-Key: $API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"type": "user.created", "payload": {"userId": "42"}}'
 ```
@@ -50,7 +64,7 @@ Returns `201` with the stored event's `id` and `time`. `type` is required;
 ### List events
 
 ```bash
-curl 'http://localhost:8080/v1/events?limit=50'
+curl -H "X-API-Key: $API_KEY" 'http://localhost:8080/v1/events?limit=50'
 ```
 
 Returns the newest events first as `{"items": [...], "nextCursor": "..."}`.
@@ -61,6 +75,7 @@ last page. `limit` defaults to 50 (max 200).
 
 ```bash
 curl -X POST http://localhost:8080/v1/webhooks \
+  -H "X-API-Key: $API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"url": "https://example.com/hooks/eventcore"}'
 ```
@@ -97,6 +112,7 @@ Environment variables (configured in `.env`):
 | DB_PASSWORD | eventcore | Database password |
 | DB_PORT | 5432 | Database port |
 | SERVER_PORT | 8080 | Application port |
+| ADMIN_TOKEN | (unset) | Token for issuing API keys; issuance is disabled while unset |
 
 ## Stack
 
