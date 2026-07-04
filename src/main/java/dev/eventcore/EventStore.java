@@ -42,24 +42,32 @@ class EventStore {
     }
 
     EventPage page(EventQuery query) {
-        List<Event> fetched = query.startsFromTheTop() ? topOfTheLog(query) : logAfter(query);
+        List<Event> fetched = bindConditions(jdbc.sql(sqlFor(query)), query)
+                .param("limit", query.rowsToFetch())
+                .query(this::toEvent)
+                .list();
         return EventPage.from(fetched, query.limit());
     }
 
-    private List<Event> topOfTheLog(EventQuery query) {
-        return jdbc.sql(SELECT_EVENTS + NEWEST_FIRST)
-                .param("limit", query.rowsToFetch())
-                .query(this::toEvent)
-                .list();
+    private String sqlFor(EventQuery query) {
+        StringBuilder sql = new StringBuilder(SELECT_EVENTS).append(" WHERE TRUE");
+        if (query.filtersByType()) {
+            sql.append(" AND type = :type");
+        }
+        if (!query.startsFromTheTop()) {
+            sql.append(" AND (time, id) < (:time, :id)");
+        }
+        return sql.append(NEWEST_FIRST).toString();
     }
 
-    private List<Event> logAfter(EventQuery query) {
-        return jdbc.sql(SELECT_EVENTS + " WHERE (time, id) < (:time, :id)" + NEWEST_FIRST)
-                .param("time", query.after().time())
-                .param("id", query.after().id())
-                .param("limit", query.rowsToFetch())
-                .query(this::toEvent)
-                .list();
+    private JdbcClient.StatementSpec bindConditions(JdbcClient.StatementSpec statement, EventQuery query) {
+        if (query.filtersByType()) {
+            statement = statement.param("type", query.type());
+        }
+        if (!query.startsFromTheTop()) {
+            statement = statement.param("time", query.after().time()).param("id", query.after().id());
+        }
+        return statement;
     }
 
     private Event toEvent(ResultSet row, int rowNumber) throws SQLException {

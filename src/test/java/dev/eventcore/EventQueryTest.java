@@ -73,6 +73,37 @@ class EventQueryTest extends IntegrationTestBase {
     }
 
     @Test
+    void filteringByTypeReturnsOnlyMatchingEvents() {
+        OffsetDateTime now = OffsetDateTime.now();
+        insertEvent("order.placed", now.minusSeconds(2));
+        insertEvent("user.created", now.minusSeconds(1));
+        insertEvent("order.placed", now);
+
+        EventPage page = listEvents("?type=order.placed");
+
+        assertThat(page.items()).hasSize(2)
+                .allSatisfy(event -> assertThat(event.type()).isEqualTo("order.placed"));
+    }
+
+    @Test
+    void typeFilterComposesWithCursorPagination() {
+        OffsetDateTime now = OffsetDateTime.now();
+        for (int i = 0; i < 3; i++) {
+            insertEvent("wanted.event", now.minusSeconds(i * 2));
+            insertEvent("noise.event", now.minusSeconds(i * 2 + 1));
+        }
+
+        EventPage firstPage = listEvents("?type=wanted.event&limit=2");
+        assertThat(firstPage.items()).hasSize(2);
+        assertThat(firstPage.nextCursor()).isNotNull();
+
+        EventPage lastPage = listEvents("?type=wanted.event&limit=2&cursor=" + firstPage.nextCursor());
+        assertThat(lastPage.items()).hasSize(1);
+        assertThat(lastPage.items().getFirst().type()).isEqualTo("wanted.event");
+        assertThat(lastPage.nextCursor()).isNull();
+    }
+
+    @Test
     void invalidCursorIsRejected() {
         ResponseEntity<ApiError> response = listEventsExpectingRejection("?cursor=not-a-cursor");
 

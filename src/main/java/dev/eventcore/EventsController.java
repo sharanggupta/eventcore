@@ -30,7 +30,8 @@ class EventsController {
 
     @GetMapping
     EventPage list(@RequestParam(defaultValue = "50") int limit,
-                   @RequestParam(required = false) String cursor) {
-        return events.page(EventQuery.of(limit, cursor));
+                   @RequestParam(required = false) String cursor,
+                   @RequestParam(required = false) String type) {
+        return events.page(EventQuery.of(limit, cursor, type));
     }
 }
