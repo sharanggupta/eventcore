@@ -22,7 +22,7 @@ class EventQueryTest extends IntegrationTestBase {
 
     @BeforeEach
     void startWithAnEmptyEventLog() {
-        jdbc.sql("DELETE FROM events").update();
+        wipeAllData();
     }
 
     @Test

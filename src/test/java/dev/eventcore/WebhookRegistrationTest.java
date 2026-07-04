@@ -22,7 +22,7 @@ class WebhookRegistrationTest extends IntegrationTestBase {
 
     @BeforeEach
     void startWithNoSubscriptions() {
-        jdbc.sql("DELETE FROM webhook_subscriptions").update();
+        wipeAllData();
     }
 
     @Test

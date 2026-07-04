@@ -47,9 +47,7 @@ class WebhookDeliveryTest extends IntegrationTestBase {
 
     @BeforeEach
     void startClean() {
-        jdbc.sql("DELETE FROM webhook_deliveries").update();
-        jdbc.sql("DELETE FROM webhook_subscriptions").update();
-        jdbc.sql("DELETE FROM events").update();
+        wipeAllData();
         subscriber.reset();
         subscriber.listenOn(serverPort());
     }
