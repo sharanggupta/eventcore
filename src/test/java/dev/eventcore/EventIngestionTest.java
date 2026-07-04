@@ -2,8 +2,10 @@ package dev.eventcore;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.client.RestClient;
 
@@ -19,20 +21,27 @@ class EventIngestionTest extends IntegrationTestBase {
     private record StoredEvent(String type, String payload) {}
 
     @Test
-    void postingAnEventReturnsItsReceiptAndPersistsIt() {
+    void postingAnEventReturnsItsReceipt() {
         var response = postEvent("""
                 {"type": "user.created", "payload": {"userId": "42", "plan": "pro"}}
                 """).toEntity(EventCreated.class);
 
-        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         EventCreated receipt = response.getBody();
         assertThat(receipt.id()).isNotNull();
         assertThat(receipt.time()).isNotNull();
         assertThat(receipt.type()).isEqualTo("user.created");
+    }
+
+    @Test
+    void postedEventIsPersistedWithItsPayload() {
+        EventCreated receipt = postEvent("""
+                {"type": "invoice.paid", "payload": {"invoiceId": "INV-7"}}
+                """).body(EventCreated.class);
 
         StoredEvent stored = storedEvent(receipt.id());
-        assertThat(stored.type()).isEqualTo("user.created");
-        assertThat(stored.payload()).contains("\"userId\": \"42\"");
+        assertThat(stored.type()).isEqualTo("invoice.paid");
+        assertThat(stored.payload()).contains("\"invoiceId\": \"INV-7\"");
     }
 
     @Test
@@ -41,28 +50,26 @@ class EventIngestionTest extends IntegrationTestBase {
                 {"type": "user.deleted"}
                 """).toEntity(EventCreated.class);
 
-        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
 
     @Test
     void missingTypeIsRejected() {
-        var response = postEvent("""
+        var response = postEventExpectingRejection("""
                 {"payload": {"orphan": true}}
-                """).onStatus(HttpStatusCode::isError, (request, res) -> { /* asserted below */ })
-                .toEntity(ApiError.class);
+                """);
 
-        assertThat(response.getStatusCode().value()).isEqualTo(400);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().error()).isEqualTo("type is required");
     }
 
     @Test
     void blankTypeIsRejected() {
-        var response = postEvent("""
+        var response = postEventExpectingRejection("""
                 {"type": "   "}
-                """).onStatus(HttpStatusCode::isError, (request, res) -> { /* asserted below */ })
-                .toEntity(ApiError.class);
+                """);
 
-        assertThat(response.getStatusCode().value()).isEqualTo(400);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     private RestClient.ResponseSpec postEvent(String body) {
@@ -71,6 +78,12 @@ class EventIngestionTest extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve();
+    }
+
+    private ResponseEntity<ApiError> postEventExpectingRejection(String body) {
+        return postEvent(body)
+                .onStatus(HttpStatusCode::isError, (request, response) -> { })
+                .toEntity(ApiError.class);
     }
 
     private StoredEvent storedEvent(UUID id) {

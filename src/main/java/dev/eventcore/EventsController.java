@@ -21,6 +21,6 @@ class EventsController {
     @ResponseStatus(HttpStatus.CREATED)
     EventCreated create(@RequestBody CreateEventRequest request) {
         request.validate();
-        return events.save(request.type(), request.payload());
+        return events.append(request.type(), request.payload());
     }
 }

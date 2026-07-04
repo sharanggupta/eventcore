@@ -6,15 +6,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class IntegrationTest extends IntegrationTestBase {
+class SmokeTest extends IntegrationTestBase {
 
     @Autowired
     private JdbcClient jdbc;
-
-    @Test
-    void applicationStartsAgainstTheDatabase() {
-        assertThat(postgres.isRunning()).isTrue();
-    }
 
     @Test
     void databaseAnswersQueries() {

@@ -18,7 +18,7 @@ class EventStore {
         this.json = json;
     }
 
-    EventCreated save(String type, JsonNode payload) {
+    EventCreated append(String type, JsonNode payload) {
         EventCreated event = EventCreated.now(type);
         jdbc.sql("""
                 INSERT INTO events (id, time, type, payload)

@@ -16,7 +16,7 @@ abstract class IntegrationTestBase {
             .asCompatibleSubstituteFor("postgres");
 
     // Singleton container shared across all test classes; Ryuk stops it when the JVM exits.
-    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(TIMESCALE_IMAGE)
+    private static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(TIMESCALE_IMAGE)
             .withDatabaseName("eventcore")
             .withUsername("eventcore")
             .withPassword("eventcore");
