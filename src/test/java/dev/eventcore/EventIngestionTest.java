@@ -9,7 +9,6 @@ import org.springframework.web.client.RestClient;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -21,81 +20,71 @@ class EventIngestionTest extends IntegrationTestBase {
     @Autowired
     private DataSource dataSource;
 
-    private RestClient client() {
-        return RestClient.builder()
-                .baseUrl("http://localhost:" + port)
-                .build();
-    }
-
     @Test
     void postEventReturns201WithIdAndPersistsRow() throws SQLException {
-        var response = client().post()
-                .uri("/v1/events")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body("""
-                        {"type": "user.created", "payload": {"userId": "42", "plan": "pro"}}
-                        """)
-                .retrieve()
-                .toEntity(Map.class);
+        var response = postEvent("""
+                {"type": "user.created", "payload": {"userId": "42", "plan": "pro"}}
+                """).toEntity(EventCreated.class);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
-        assertThat(response.getBody()).containsKey("id").containsKey("time");
-        assertThat(response.getBody().get("type")).isEqualTo("user.created");
+        EventCreated event = response.getBody();
+        assertThat(event.id()).isNotNull();
+        assertThat(event.time()).isNotNull();
+        assertThat(event.type()).isEqualTo("user.created");
 
-        String id = (String) response.getBody().get("id");
-        try (var connection = dataSource.getConnection();
-             var statement = connection.prepareStatement(
-                     "SELECT type, payload::text AS payload FROM events WHERE id = ?::uuid")) {
-            statement.setString(1, id);
-            var resultSet = statement.executeQuery();
-            assertThat(resultSet.next()).isTrue();
-            assertThat(resultSet.getString("type")).isEqualTo("user.created");
-            assertThat(resultSet.getString("payload")).contains("\"userId\": \"42\"");
-        }
+        assertEventPersisted(event);
     }
 
     @Test
     void postEventWithoutPayloadIsAccepted() {
-        var response = client().post()
-                .uri("/v1/events")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body("""
-                        {"type": "user.deleted"}
-                        """)
-                .retrieve()
-                .toEntity(Map.class);
+        var response = postEvent("""
+                {"type": "user.deleted"}
+                """).toEntity(EventCreated.class);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
     }
 
     @Test
     void postEventWithMissingTypeReturns400() {
-        var response = client().post()
-                .uri("/v1/events")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body("""
-                        {"payload": {"orphan": true}}
-                        """)
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (req, res) -> { /* assert below instead */ })
-                .toEntity(Map.class);
+        var response = postEvent("""
+                {"payload": {"orphan": true}}
+                """).onStatus(HttpStatusCode::isError, (req, res) -> { /* assert below instead */ })
+                .toEntity(ApiError.class);
 
         assertThat(response.getStatusCode().value()).isEqualTo(400);
-        assertThat(response.getBody()).containsEntry("error", "type is required");
+        assertThat(response.getBody().error()).isEqualTo("type is required");
     }
 
     @Test
     void postEventWithBlankTypeReturns400() {
-        var response = client().post()
-                .uri("/v1/events")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body("""
-                        {"type": "   "}
-                        """)
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (req, res) -> { /* assert below instead */ })
-                .toEntity(Map.class);
+        var response = postEvent("""
+                {"type": "   "}
+                """).onStatus(HttpStatusCode::isError, (req, res) -> { /* assert below instead */ })
+                .toEntity(ApiError.class);
 
         assertThat(response.getStatusCode().value()).isEqualTo(400);
+    }
+
+    private RestClient.ResponseSpec postEvent(String body) {
+        return RestClient.builder()
+                .baseUrl("http://localhost:" + port)
+                .build()
+                .post()
+                .uri("/v1/events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve();
+    }
+
+    private void assertEventPersisted(EventCreated event) throws SQLException {
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement(
+                     "SELECT type, payload::text AS payload FROM events WHERE id = ?::uuid")) {
+            statement.setString(1, event.id().toString());
+            var resultSet = statement.executeQuery();
+            assertThat(resultSet.next()).isTrue();
+            assertThat(resultSet.getString("type")).isEqualTo("user.created");
+            assertThat(resultSet.getString("payload")).contains("\"userId\": \"42\"");
+        }
     }
 }

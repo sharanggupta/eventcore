@@ -1,0 +1,16 @@
+package dev.eventcore;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+class ApiExceptionHandler {
+
+    @ExceptionHandler(InvalidRequestException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ApiError invalidRequest(InvalidRequestException exception) {
+        return new ApiError(exception.getMessage());
+    }
+}
