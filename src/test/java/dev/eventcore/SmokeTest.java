@@ -2,6 +2,8 @@ package dev.eventcore;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,5 +34,15 @@ class SmokeTest extends IntegrationTestBase {
                 .single();
 
         assertThat(version).isEqualTo("1.0.0");
+    }
+
+    @Test
+    void healthIsTheOnlyHealthEndpoint() {
+        var response = api().get().uri("/actuator/health")
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, res) -> { })
+                .toBodilessEntity();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 }
