@@ -47,6 +47,16 @@ curl -X POST http://localhost:8080/v1/events \
 Returns `201` with the stored event's `id` and `time`. `type` is required;
 `payload` is optional arbitrary JSON. A missing or blank `type` returns `400`.
 
+### List events
+
+```bash
+curl 'http://localhost:8080/v1/events?limit=50'
+```
+
+Returns the newest events first as `{"items": [...], "nextCursor": "..."}`.
+Pass `nextCursor` back as `cursor` to fetch the next page; it is `null` on the
+last page. `limit` defaults to 50 (max 200).
+
 ## Local Development
 
 ### Run Tests

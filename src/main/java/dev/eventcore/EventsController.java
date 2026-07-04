@@ -1,9 +1,11 @@
 package dev.eventcore;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,5 +24,11 @@ class EventsController {
     EventCreated create(@RequestBody CreateEventRequest request) {
         request.validate();
         return events.append(request.type(), request.payload());
+    }
+
+    @GetMapping
+    EventPage list(@RequestParam(defaultValue = "50") int limit,
+                   @RequestParam(required = false) String cursor) {
+        return events.page(EventQuery.of(limit, cursor));
     }
 }
