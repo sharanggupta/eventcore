@@ -12,10 +12,11 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class WebhookRegistrationTest extends IntegrationTestBase {
+class WebhookSubscriptionsTest extends IntegrationTestBase {
 
     @Autowired
     private JdbcClient jdbc;
@@ -56,6 +57,46 @@ class WebhookRegistrationTest extends IntegrationTestBase {
     }
 
     @Test
+    void deletingASubscriptionRemovesIt() {
+        WebhookSubscription subscription = registerWebhook("""
+                {"url": "https://example.com/hooks/short-lived"}
+                """).body(WebhookSubscription.class);
+
+        var response = api().delete().uri("/v1/webhooks/" + subscription.id())
+                .retrieve()
+                .toBodilessEntity();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(listWebhooks()).isEmpty();
+    }
+
+    @Test
+    void deletingASubscriptionAlsoRemovesItsDeliveryHistory() {
+        WebhookSubscription subscription = registerWebhook("""
+                {"url": "https://example.com/hooks/with-history"}
+                """).body(WebhookSubscription.class);
+        postEvent("history.maker");
+
+        var response = api().delete().uri("/v1/webhooks/" + subscription.id())
+                .retrieve()
+                .toBodilessEntity();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(deliveryCount()).isZero();
+    }
+
+    @Test
+    void deletingAnUnknownSubscriptionIs404() {
+        var response = api().delete().uri("/v1/webhooks/" + UUID.randomUUID())
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, res) -> { })
+                .toEntity(ApiError.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().error()).isEqualTo("webhook subscription not found");
+    }
+
+    @Test
     void missingUrlIsRejected() {
         ResponseEntity<ApiError> response = registerWebhookExpectingRejection("{}");
 
@@ -92,7 +133,20 @@ class WebhookRegistrationTest extends IntegrationTestBase {
                 .body(new ParameterizedTypeReference<>() { });
     }
 
+    private void postEvent(String type) {
+        api().post()
+                .uri("/v1/events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"type\": \"" + type + "\"}")
+                .retrieve()
+                .toBodilessEntity();
+    }
+
     private Long subscriptionCount() {
         return jdbc.sql("SELECT count(*) FROM webhook_subscriptions").query(Long.class).single();
+    }
+
+    private Long deliveryCount() {
+        return jdbc.sql("SELECT count(*) FROM webhook_deliveries").query(Long.class).single();
     }
 }

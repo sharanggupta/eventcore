@@ -19,4 +19,10 @@ class ApiExceptionHandler {
     ApiError unauthorized(UnauthorizedException exception) {
         return new ApiError(exception.getMessage());
     }
+
+    @ExceptionHandler(NotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    ApiError notFound(NotFoundException exception) {
+        return new ApiError(exception.getMessage());
+    }
 }

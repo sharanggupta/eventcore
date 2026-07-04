@@ -28,6 +28,13 @@ class WebhookStore {
         return subscription;
     }
 
+    boolean remove(UUID id) {
+        int removed = jdbc.sql("DELETE FROM webhook_subscriptions WHERE id = :id")
+                .param("id", id)
+                .update();
+        return removed > 0;
+    }
+
     List<WebhookSubscription> all() {
         return jdbc.sql("SELECT id, created_at, url FROM webhook_subscriptions ORDER BY created_at")
                 .query(this::toSubscription)
