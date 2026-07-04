@@ -1,9 +1,10 @@
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
-COPY pom.xml .
+COPY mvnw pom.xml ./
+COPY .mvn .mvn
+RUN ./mvnw --batch-mode dependency:go-offline
 COPY src ./src
-RUN apt-get update && apt-get install -y maven && \
-    mvn clean package -DskipTests
+RUN ./mvnw --batch-mode clean package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
