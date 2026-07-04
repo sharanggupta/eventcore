@@ -13,4 +13,10 @@ class ApiExceptionHandler {
     ApiError invalidRequest(InvalidRequestException exception) {
         return new ApiError(exception.getMessage());
     }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    ApiError unauthorized(UnauthorizedException exception) {
+        return new ApiError(exception.getMessage());
+    }
 }

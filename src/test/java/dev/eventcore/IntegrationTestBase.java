@@ -25,11 +25,14 @@ abstract class IntegrationTestBase {
         postgres.start();
     }
 
+    protected static final String ADMIN_TOKEN = "test-admin-token";
+
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        registry.add("eventcore.security.admin-token", () -> ADMIN_TOKEN);
     }
 
     @LocalServerPort
