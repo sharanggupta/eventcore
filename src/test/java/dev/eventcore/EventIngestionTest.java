@@ -2,41 +2,41 @@ package dev.eventcore;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.client.RestClient;
 
-import javax.sql.DataSource;
-import java.sql.SQLException;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class EventIngestionTest extends IntegrationTestBase {
 
-    @LocalServerPort
-    private int port;
-
     @Autowired
-    private DataSource dataSource;
+    private JdbcClient jdbc;
+
+    private record StoredEvent(String type, String payload) {}
 
     @Test
-    void postEventReturns201WithIdAndPersistsRow() throws SQLException {
+    void postingAnEventReturnsItsReceiptAndPersistsIt() {
         var response = postEvent("""
                 {"type": "user.created", "payload": {"userId": "42", "plan": "pro"}}
                 """).toEntity(EventCreated.class);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
-        EventCreated event = response.getBody();
-        assertThat(event.id()).isNotNull();
-        assertThat(event.time()).isNotNull();
-        assertThat(event.type()).isEqualTo("user.created");
+        EventCreated receipt = response.getBody();
+        assertThat(receipt.id()).isNotNull();
+        assertThat(receipt.time()).isNotNull();
+        assertThat(receipt.type()).isEqualTo("user.created");
 
-        assertEventPersisted(event);
+        StoredEvent stored = storedEvent(receipt.id());
+        assertThat(stored.type()).isEqualTo("user.created");
+        assertThat(stored.payload()).contains("\"userId\": \"42\"");
     }
 
     @Test
-    void postEventWithoutPayloadIsAccepted() {
+    void payloadIsOptional() {
         var response = postEvent("""
                 {"type": "user.deleted"}
                 """).toEntity(EventCreated.class);
@@ -45,10 +45,10 @@ class EventIngestionTest extends IntegrationTestBase {
     }
 
     @Test
-    void postEventWithMissingTypeReturns400() {
+    void missingTypeIsRejected() {
         var response = postEvent("""
                 {"payload": {"orphan": true}}
-                """).onStatus(HttpStatusCode::isError, (req, res) -> { /* assert below instead */ })
+                """).onStatus(HttpStatusCode::isError, (request, res) -> { /* asserted below */ })
                 .toEntity(ApiError.class);
 
         assertThat(response.getStatusCode().value()).isEqualTo(400);
@@ -56,35 +56,27 @@ class EventIngestionTest extends IntegrationTestBase {
     }
 
     @Test
-    void postEventWithBlankTypeReturns400() {
+    void blankTypeIsRejected() {
         var response = postEvent("""
                 {"type": "   "}
-                """).onStatus(HttpStatusCode::isError, (req, res) -> { /* assert below instead */ })
+                """).onStatus(HttpStatusCode::isError, (request, res) -> { /* asserted below */ })
                 .toEntity(ApiError.class);
 
         assertThat(response.getStatusCode().value()).isEqualTo(400);
     }
 
     private RestClient.ResponseSpec postEvent(String body) {
-        return RestClient.builder()
-                .baseUrl("http://localhost:" + port)
-                .build()
-                .post()
+        return api().post()
                 .uri("/v1/events")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve();
     }
 
-    private void assertEventPersisted(EventCreated event) throws SQLException {
-        try (var connection = dataSource.getConnection();
-             var statement = connection.prepareStatement(
-                     "SELECT type, payload::text AS payload FROM events WHERE id = ?::uuid")) {
-            statement.setString(1, event.id().toString());
-            var resultSet = statement.executeQuery();
-            assertThat(resultSet.next()).isTrue();
-            assertThat(resultSet.getString("type")).isEqualTo("user.created");
-            assertThat(resultSet.getString("payload")).contains("\"userId\": \"42\"");
-        }
+    private StoredEvent storedEvent(UUID id) {
+        return jdbc.sql("SELECT type, payload::text AS payload FROM events WHERE id = :id")
+                .param("id", id)
+                .query((row, rowNumber) -> new StoredEvent(row.getString("type"), row.getString("payload")))
+                .single();
     }
 }

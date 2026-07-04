@@ -9,8 +9,4 @@ record CreateEventRequest(String type, JsonNode payload) {
             throw new InvalidRequestException("type is required");
         }
     }
-
-    boolean hasPayload() {
-        return payload != null && !payload.isNull();
-    }
 }
