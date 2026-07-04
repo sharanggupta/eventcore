@@ -40,4 +40,8 @@ abstract class IntegrationTestBase {
                 .baseUrl("http://localhost:" + port)
                 .build();
     }
+
+    protected int serverPort() {
+        return port;
+    }
 }

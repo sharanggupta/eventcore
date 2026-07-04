@@ -57,6 +57,19 @@ Returns the newest events first as `{"items": [...], "nextCursor": "..."}`.
 Pass `nextCursor` back as `cursor` to fetch the next page; it is `null` on the
 last page. `limit` defaults to 50 (max 200).
 
+### Register a webhook
+
+```bash
+curl -X POST http://localhost:8080/v1/webhooks \
+  -H 'Content-Type: application/json' \
+  -d '{"url": "https://example.com/hooks/eventcore"}'
+```
+
+Every ingested event is POSTed as JSON (`{id, time, type, payload}`) to each
+registered webhook. Failed deliveries are retried with exponential backoff up
+to 5 attempts, tracked in a database outbox so pending deliveries survive
+restarts. `GET /v1/webhooks` lists registered subscriptions.
+
 ## Local Development
 
 ### Run Tests

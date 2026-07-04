@@ -13,9 +13,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/v1/events")
 class EventsController {
 
+    private final EventIngestion ingestion;
     private final EventStore events;
 
-    EventsController(EventStore events) {
+    EventsController(EventIngestion ingestion, EventStore events) {
+        this.ingestion = ingestion;
         this.events = events;
     }
 
@@ -23,7 +25,7 @@ class EventsController {
     @ResponseStatus(HttpStatus.CREATED)
     EventCreated create(@RequestBody CreateEventRequest request) {
         request.validate();
-        return events.append(request.type(), request.payload());
+        return ingestion.ingest(request.type(), request.payload());
     }
 
     @GetMapping
