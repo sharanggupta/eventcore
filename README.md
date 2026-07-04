@@ -34,6 +34,19 @@ curl http://localhost:8080/health
 
 Should return: `OK`
 
+## API
+
+### Ingest an event
+
+```bash
+curl -X POST http://localhost:8080/v1/events \
+  -H 'Content-Type: application/json' \
+  -d '{"type": "user.created", "payload": {"userId": "42"}}'
+```
+
+Returns `201` with the stored event's `id` and `time`. `type` is required;
+`payload` is optional arbitrary JSON. A missing or blank `type` returns `400`.
+
 ## Local Development
 
 ### Run Tests
