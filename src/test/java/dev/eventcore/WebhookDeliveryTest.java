@@ -11,11 +11,17 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.time.Duration;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,9 +70,21 @@ class WebhookDeliveryTest extends IntegrationTestBase {
             assertThat(subscriber.inbox("second")).hasSize(1);
         });
 
-        JsonNode delivered = json.readTree(subscriber.inbox("first").getFirst());
+        JsonNode delivered = json.readTree(subscriber.inbox("first").getFirst().body());
         assertThat(delivered.get("type").asText()).isEqualTo("order.placed");
         assertThat(delivered.get("payload").get("orderId").asText()).isEqualTo("42");
+    }
+
+    @Test
+    void deliveriesAreSignedWithTheSubscriptionSecret() throws GeneralSecurityException {
+        RegisteredWebhook webhook = subscribe("signed");
+
+        postEvent("payment.captured", null);
+
+        await().atMost(PATIENCE).untilAsserted(() ->
+                assertThat(subscriber.inbox("signed")).hasSize(1));
+        SignedCall call = subscriber.inbox("signed").getFirst();
+        assertThat(call.signature()).isEqualTo(hmacSignatureOf(webhook.secret(), call.body()));
     }
 
     @Test
@@ -93,13 +111,13 @@ class WebhookDeliveryTest extends IntegrationTestBase {
         assertThat(subscriber.inbox("dead")).isEmpty();
     }
 
-    private void subscribe(String inbox) {
-        api().post()
+    private RegisteredWebhook subscribe(String inbox) {
+        return api().post()
                 .uri("/v1/webhooks")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body("{\"url\": \"" + subscriber.urlFor(inbox) + "\"}")
                 .retrieve()
-                .toBodilessEntity();
+                .body(RegisteredWebhook.class);
     }
 
     private void postEvent(String type, String payload) {
@@ -120,24 +138,34 @@ class WebhookDeliveryTest extends IntegrationTestBase {
                 .single();
     }
 
+    private String hmacSignatureOf(String secret, String body) throws GeneralSecurityException {
+        Mac hmac = Mac.getInstance("HmacSHA256");
+        hmac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return "sha256=" + HexFormat.of().formatHex(hmac.doFinal(body.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    record SignedCall(String body, String signature) {}
+
     @RestController
     static class StubSubscriber {
 
-        private final Map<String, List<String>> inboxes = new ConcurrentHashMap<>();
+        private final Map<String, List<SignedCall>> inboxes = new ConcurrentHashMap<>();
         private final AtomicInteger failuresRemaining = new AtomicInteger();
 
         private int port;
 
         @PostMapping("/stub/{inbox}")
-        ResponseEntity<Void> receive(@PathVariable String inbox, @RequestBody String body) {
+        ResponseEntity<Void> receive(@PathVariable String inbox,
+                                     @RequestHeader(value = "X-EventCore-Signature", required = false) String signature,
+                                     @RequestBody String body) {
             if (failuresRemaining.getAndUpdate(remaining -> Math.max(0, remaining - 1)) > 0) {
                 return ResponseEntity.internalServerError().build();
             }
-            inbox(inbox).add(body);
+            inbox(inbox).add(new SignedCall(body, signature));
             return ResponseEntity.ok().build();
         }
 
-        List<String> inbox(String name) {
+        List<SignedCall> inbox(String name) {
             return inboxes.computeIfAbsent(name, unused -> new CopyOnWriteArrayList<>());
         }
 

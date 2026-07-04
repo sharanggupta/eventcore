@@ -35,6 +35,7 @@ class WebhookDispatcher {
             http.post()
                     .uri(delivery.url())
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header("X-EventCore-Signature", delivery.signature())
                     .body(delivery.body())
                     .retrieve()
                     .toBodilessEntity();

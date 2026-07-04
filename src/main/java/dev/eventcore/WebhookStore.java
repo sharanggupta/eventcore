@@ -18,14 +18,16 @@ class WebhookStore {
         this.jdbc = jdbc;
     }
 
-    WebhookSubscription register(String url) {
-        WebhookSubscription subscription = WebhookSubscription.now(url);
-        jdbc.sql("INSERT INTO webhook_subscriptions (id, created_at, url) VALUES (:id, :createdAt, :url)")
-                .param("id", subscription.id())
-                .param("createdAt", subscription.createdAt())
-                .param("url", subscription.url())
+    RegisteredWebhook register(String url) {
+        RegisteredWebhook webhook = RegisteredWebhook.now(url);
+        jdbc.sql("INSERT INTO webhook_subscriptions (id, created_at, url, secret) "
+                        + "VALUES (:id, :createdAt, :url, :secret)")
+                .param("id", webhook.id())
+                .param("createdAt", webhook.createdAt())
+                .param("url", webhook.url())
+                .param("secret", webhook.secret())
                 .update();
-        return subscription;
+        return webhook;
     }
 
     boolean remove(UUID id) {

@@ -36,7 +36,7 @@ class DeliveryOutbox {
 
     List<PendingDelivery> due() {
         return jdbc.sql("""
-                SELECT d.id, d.body::text AS body, s.url
+                SELECT d.id, d.body::text AS body, s.url, s.secret
                 FROM webhook_deliveries d
                 JOIN webhook_subscriptions s ON s.id = d.subscription_id
                 WHERE d.status = 'pending' AND d.next_attempt_at <= NOW()
@@ -72,6 +72,7 @@ class DeliveryOutbox {
         return new PendingDelivery(
                 row.getObject("id", UUID.class),
                 row.getString("url"),
-                row.getString("body"));
+                row.getString("body"),
+                row.getString("secret"));
     }
 }

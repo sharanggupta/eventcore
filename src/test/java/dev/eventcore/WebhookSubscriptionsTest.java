@@ -30,15 +30,27 @@ class WebhookSubscriptionsTest extends IntegrationTestBase {
     void registeringAWebhookReturnsItAndPersistsIt() {
         var response = registerWebhook("""
                 {"url": "https://example.com/hooks/orders"}
-                """).toEntity(WebhookSubscription.class);
+                """).toEntity(RegisteredWebhook.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        WebhookSubscription subscription = response.getBody();
-        assertThat(subscription.id()).isNotNull();
-        assertThat(subscription.createdAt()).isNotNull();
-        assertThat(subscription.url()).isEqualTo("https://example.com/hooks/orders");
+        RegisteredWebhook webhook = response.getBody();
+        assertThat(webhook.id()).isNotNull();
+        assertThat(webhook.createdAt()).isNotNull();
+        assertThat(webhook.url()).isEqualTo("https://example.com/hooks/orders");
 
         assertThat(subscriptionCount()).isEqualTo(1);
+    }
+
+    @Test
+    void registeringAWebhookRevealsItsSigningSecretExactlyOnce() {
+        RegisteredWebhook webhook = registerWebhook("""
+                {"url": "https://example.com/hooks/signed"}
+                """).body(RegisteredWebhook.class);
+
+        assertThat(webhook.secret()).startsWith("whsec_");
+
+        String listedAsJson = api().get().uri("/v1/webhooks").retrieve().body(String.class);
+        assertThat(listedAsJson).doesNotContain("secret").doesNotContain("whsec_");
     }
 
     @Test
@@ -58,9 +70,9 @@ class WebhookSubscriptionsTest extends IntegrationTestBase {
 
     @Test
     void deletingASubscriptionRemovesIt() {
-        WebhookSubscription subscription = registerWebhook("""
+        RegisteredWebhook subscription = registerWebhook("""
                 {"url": "https://example.com/hooks/short-lived"}
-                """).body(WebhookSubscription.class);
+                """).body(RegisteredWebhook.class);
 
         var response = api().delete().uri("/v1/webhooks/" + subscription.id())
                 .retrieve()
@@ -72,9 +84,9 @@ class WebhookSubscriptionsTest extends IntegrationTestBase {
 
     @Test
     void deletingASubscriptionAlsoRemovesItsDeliveryHistory() {
-        WebhookSubscription subscription = registerWebhook("""
+        RegisteredWebhook subscription = registerWebhook("""
                 {"url": "https://example.com/hooks/with-history"}
-                """).body(WebhookSubscription.class);
+                """).body(RegisteredWebhook.class);
         postEvent("history.maker");
 
         var response = api().delete().uri("/v1/webhooks/" + subscription.id())

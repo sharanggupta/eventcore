@@ -25,7 +25,7 @@ class WebhooksController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    WebhookSubscription register(@RequestBody CreateWebhookRequest request) {
+    RegisteredWebhook register(@RequestBody CreateWebhookRequest request) {
         request.validate();
         return webhooks.register(request.url());
     }
