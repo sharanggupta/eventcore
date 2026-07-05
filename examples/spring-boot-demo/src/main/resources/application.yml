@@ -1,0 +1,8 @@
+server:
+  port: 8081
+
+eventcore:
+  url: ${EVENTCORE_URL:http://localhost:8080}
+  api-key: ${EVENTCORE_API_KEY:}
+  # The whsec_... secret returned once when you register this app's webhook.
+  webhook-secret: ${EVENTCORE_WEBHOOK_SECRET:}
