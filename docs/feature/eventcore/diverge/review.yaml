@@ -1,0 +1,131 @@
+review:
+  reviewer: nw-diverger-reviewer (Prism)
+  date: 2026-07-05
+  feature: eventcore
+  wave: DIVERGE
+  verdict: approved
+  iterations: 1 # approved on first pass, no revisions required
+
+  dimensions:
+    jtbd_rigor:
+      verdict: pass
+      findings:
+        - check: "Abstraction level"
+          location: "job-analysis.md §3 (Functional job statement)"
+          evidence: "Job statement avoids feature/solution references and reaches strategic level: 'durably recorded and conveyed to every party that depends on it, so I can prove what happened'"
+          status: pass
+        - check: "First-principles extraction"
+          location: "job-analysis.md §2 (5-Why chain)"
+          evidence: "Five-step chain from observable behavior (teams POST events) to strategic need (prove behavior, keep ecosystem consistent); natural stopping point documented"
+          status: pass
+        - check: "Outcome statement quality"
+          location: "job-analysis.md §5 (ODI table)"
+          evidence: "8 outcomes in Minimize+metric+object+context format; no forbidden words; no solution references; no compounds"
+          status: pass
+        - check: "Outcome count & job types"
+          location: "job-analysis.md §3–5"
+          evidence: "8 outcomes (minimum 3); functional + emotional + social statements all present"
+          status: pass
+
+    research_quality:
+      verdict: pass
+      findings:
+        - check: "Evidence vs assertion"
+          location: "competitive-research.md §1–6 (product sections)"
+          evidence: "All 6 direct competitors named with official documentation URLs; specific mechanics cited (Svix 30-90d retention, Hookdeck 3/7/30d tiers, Convoy ELv2 licensing, AWS 24h retry 185x)"
+          status: pass
+        - check: "Prior art coverage"
+          location: "competitive-research.md §1–6b"
+          evidence: "6 direct products + 1 non-obvious alternative (immudb, database category serving forensic job facet) + 1 DIY incumbent (transactional outbox pattern)"
+          status: pass
+        - check: "Generic claims test"
+          location: "competitive-research.md (Market Patterns)"
+          evidence: "5 cross-cutting patterns (P1–P5) all grounded in per-product evidence; no generic market claims"
+          status: pass
+        - check: "Limitation honesty"
+          location: "job-analysis.md intro; wave-decisions.md [D2]; jobs.yaml header"
+          evidence: "Desk-research proxy limitation disclosed in all three places scores appear; DISCOVER validation requirement explicit"
+          status: pass
+
+    option_diversity:
+      verdict: pass
+      findings:
+        - check: "Generation breadth"
+          location: "options-raw.md §2–3"
+          evidence: "7 SCAMPER options (one per lens) + 4 Crazy 8s; 11 raw options total"
+          status: pass
+        - check: "Curation justification"
+          location: "options-raw.md §4 (Curation table)"
+          evidence: "Merges justified structurally (same mechanism/assumption/cost); 1 removal justified (packaging orthogonal to job)"
+          status: pass
+        - check: "3-point diversity test"
+          location: "options-raw.md §6 (Diversity Test)"
+          evidence: "All 6 curated options pass: distinct mechanisms, distinct user-behavior assumptions, distinct cost profiles"
+          status: pass
+        - check: "Generation/evaluation separation"
+          location: "options-raw.md header + §2–5"
+          evidence: "No evaluative language in raw options file; all evaluation deferred to taste-evaluation.md"
+          status: pass
+        - check: "HMW framing"
+          location: "options-raw.md §1"
+          evidence: "HMW question avoids embedded solution; outcome-oriented; broad enough for structurally different answers"
+          status: pass
+
+    taste_correctness:
+      verdict: pass
+      findings:
+        - check: "Weights locked before scoring"
+          location: "taste-evaluation.md §1"
+          evidence: "DVF 25%, T1 15%, T2 20%, T3 15%, T4 25%; 'fixed before any option was scored. No adjustments were made afterward.'"
+          status: pass
+        - check: "DVF filter applied"
+          location: "taste-evaluation.md §2"
+          evidence: "All 6 options evaluated on D/F/V (threshold <6); all survive; nearest miss Source Capture at 7; elimination rule documented"
+          status: pass
+        - check: "Survivor scoring completeness"
+          location: "taste-evaluation.md §3–4"
+          evidence: "All 6 post-DVF options scored on all 4 taste criteria with rubric-grounded justifications"
+          status: pass
+        - check: "Rubric application"
+          location: "taste-evaluation.md §3"
+          evidence: "Scores justified against rubric with trade-offs articulated (e.g. T1 Option 1: 'Flow monitors could be deferred... not a 5')"
+          status: pass
+        - check: "Arithmetic accuracy"
+          location: "taste-evaluation.md §4"
+          evidence: "Option 1: 4.67×0.25 + 4×0.15 + 4×0.20 + 5×0.15 + 5×0.25 = 4.57 verified; Option 2 = 3.80 verified; ranking consistent"
+          status: pass
+
+    recommendation_coherence:
+      verdict: pass
+      findings:
+        - check: "Traceability to matrix"
+          location: "recommendation.md (Top 3); taste-evaluation.md §4"
+          evidence: "Recommended option (Pipeline Control Tower, 4.57) is rank 1; 0.77 margin verified; rationale cites highest DVF and maximum T3/T4"
+          status: pass
+        - check: "Dissenting case documentation"
+          location: "recommendation.md (Dissenting Case)"
+          evidence: "Second place named (Pull & Replay, 3.80) with coherent alternative strategy and explicit re-open condition"
+          status: pass
+        - check: "Decision statement clarity"
+          location: "recommendation.md (Decision for DISCUSS Wave)"
+          evidence: "'Proceed with Option 1, Pipeline Control Tower' with named assumptions (a) first-party operator, (b) parity-first; re-open condition stated"
+          status: pass
+        - check: "Key risks and hire criteria"
+          location: "recommendation.md (Top 3 sections)"
+          evidence: "Risk and hire criteria present for all top-3 options"
+          status: pass
+
+  critical_issues: []
+
+  minor_issues: []
+
+  strengths:
+    - "Honest limitation disclosure: desk-research proxy scores flagged in job-analysis.md, wave-decisions.md, and jobs.yaml; no false confidence."
+    - "Evidence depth and traceability: 20+ cited official sources; every competitive insight tied to named product documentation."
+    - "White-space identification: pattern P4 (both facets, self-hosted — unoccupied) frames the strategy; recommendation acknowledges parity-vs-differentiation trade-off."
+    - "Dissent quality: coherent alternative strategic posture with explicit re-open condition keyed to DISCOVER findings, not defensive hedging."
+    - "Weights transparently applied: no post-hoc justification; top choice wins on the two heaviest criteria."
+    - "Curated-option diversity: all 6 options pass the 3-point diversity test; merges structural, not evaluative."
+
+  approval_status: approved
+  handoff: nw-product-owner (DISCUSS wave)

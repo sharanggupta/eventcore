@@ -1,0 +1,89 @@
+schema_version: 1
+
+# Product-level Jobs SSOT — bootstrapped by DIVERGE wave (feature: eventcore)
+# Validation status honesty: this session had no live customer access. The job below is
+# validated against the product's actual behavior and comprehensive desk research
+# (docs/feature/eventcore/diverge/competitive-research.md). Opportunity scores are
+# desk-research proxies pending a DISCOVER-wave customer validation pass.
+
+jobs:
+  - id: JOB-001
+    status: desk-validated # pending customer validation (DISCOVER)
+    level: strategic
+    statement: >-
+      When my software system performs actions that customers, auditors, or dependent
+      systems rely on, I want each action durably recorded and conveyed to every party
+      that depends on it, so I can prove what happened and keep dependents consistent —
+      without building event infrastructure myself.
+    facets:
+      - name: forensic
+        description: Retrieve and verify the account of what happened (audit, incident, dispute)
+      - name: propagation
+        description: Convey what happened to dependent systems, dependably (webhooks, integrations)
+    job_types:
+      functional: Record every consequential system action durably and convey it to all dependents
+      emotional: Feel calm during an incident or audit — certain nothing was silently dropped or lost
+      social: Be seen by auditors, customers, and partners as an operation whose word about its own behavior can be trusted
+    irreducible_function: capture fact -> preserve fact -> retrieve/verify fact -> propagate fact
+    outcomes:
+      - id: O1
+        statement: Minimize the time it takes to locate the events related to a specific incident
+        importance: 8.5 # proxy
+        satisfaction: 3.0 # proxy, current product
+        opportunity: 14.0
+        classification: under-served
+      - id: O2
+        statement: Minimize the likelihood of a downstream system missing an event that occurred
+        importance: 9.0
+        satisfaction: 5.0
+        opportunity: 13.0
+        classification: under-served
+      - id: O3
+        statement: Minimize the time it takes to determine why an event failed to reach a downstream system
+        importance: 8.5
+        satisfaction: 2.0
+        opportunity: 15.0
+        classification: under-served
+      - id: O4
+        statement: Minimize the effort required to demonstrate that the event record has not been altered
+        importance: 7.0
+        satisfaction: 3.0
+        opportunity: 11.0
+        classification: appropriately-served-borderline
+      - id: O5
+        statement: Minimize the time it takes to detect that event flow from a producing system has stopped
+        importance: 7.5
+        satisfaction: 2.5
+        opportunity: 12.5
+        classification: under-served
+      - id: O6
+        statement: Minimize the number of events a downstream system receives that it did not ask for
+        importance: 6.5
+        satisfaction: 2.0
+        opportunity: 11.0
+        classification: appropriately-served-borderline
+      - id: O7
+        statement: Minimize the effort required to keep stored events within a retention policy
+        importance: 6.0
+        satisfaction: 2.5
+        opportunity: 9.5
+        classification: lower-priority
+      - id: O8
+        statement: Minimize the time it takes to bring a new downstream consumer up to date with events that occurred before it existed
+        importance: 7.5
+        satisfaction: 2.0
+        opportunity: 13.0
+        classification: under-served
+    evidence:
+      - docs/feature/eventcore/diverge/job-analysis.md
+      - docs/feature/eventcore/diverge/competitive-research.md
+
+changelog:
+  - date: 2026-07-05
+    feature: eventcore
+    wave: DIVERGE
+    agent: nw-diverger (Flux)
+    change: >-
+      SSOT bootstrap. Created JOB-001 (dual-facet record-and-propagate job, strategic level)
+      with outcomes O1-O8 and desk-research proxy opportunity scores. Recommendation for
+      DISCUSS: Pipeline Control Tower (see docs/feature/eventcore/recommendation.md).
