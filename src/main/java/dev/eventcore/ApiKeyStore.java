@@ -3,6 +3,8 @@ package dev.eventcore;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+import java.util.UUID;
+
 @Repository
 class ApiKeyStore {
 
@@ -25,9 +27,17 @@ class ApiKeyStore {
     }
 
     boolean recognizes(String key) {
-        return jdbc.sql("SELECT count(*) FROM api_keys WHERE key_hash = :keyHash")
+        return jdbc.sql("SELECT count(*) FROM api_keys WHERE key_hash = :keyHash AND revoked_at IS NULL")
                 .param("keyHash", Sha256.hexOf(key))
                 .query(Long.class)
                 .single() > 0;
+    }
+
+    boolean revoke(UUID id) {
+        int revoked = jdbc.sql("UPDATE api_keys SET revoked_at = NOW() "
+                        + "WHERE id = :id AND revoked_at IS NULL")
+                .param("id", id)
+                .update();
+        return revoked > 0;
     }
 }

@@ -17,10 +17,53 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ApiKeyIssuanceTest extends IntegrationTestBase {
+class ApiKeyManagementTest extends IntegrationTestBase {
 
     @Autowired
     private JdbcClient jdbc;
+
+    @Test
+    void aRevokedKeyStopsAuthenticating() {
+        IssuedApiKey issued = issueKey(ADMIN_TOKEN, """
+                {"name": "doomed"}
+                """).body(IssuedApiKey.class);
+        assertThat(listEventsWith(issued.key()).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        var revocation = api().delete().uri("/v1/api-keys/" + issued.id())
+                .header("X-Admin-Token", ADMIN_TOKEN)
+                .retrieve()
+                .toBodilessEntity();
+
+        assertThat(revocation.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(listEventsWith(issued.key()).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void revokingAKeyRequiresTheAdminToken() {
+        IssuedApiKey issued = issueKey(ADMIN_TOKEN, """
+                {"name": "protected"}
+                """).body(IssuedApiKey.class);
+
+        var response = api().delete().uri("/v1/api-keys/" + issued.id())
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, res) -> { })
+                .toBodilessEntity();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(listEventsWith(issued.key()).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void revokingAnUnknownKeyIs404() {
+        var response = api().delete().uri("/v1/api-keys/" + UUID.randomUUID())
+                .header("X-Admin-Token", ADMIN_TOKEN)
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, res) -> { })
+                .toEntity(ApiError.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().error()).isEqualTo("api key not found");
+    }
 
     @Test
     void issuingAKeyReturnsThePlaintextExactlyOnce() {
@@ -88,6 +131,14 @@ class ApiKeyIssuanceTest extends IntegrationTestBase {
         return issueKey(adminToken, body)
                 .onStatus(HttpStatusCode::isError, (request, response) -> { })
                 .toEntity(ApiError.class);
+    }
+
+    private ResponseEntity<Void> listEventsWith(String apiKey) {
+        return anonymousApi().get().uri("/v1/events")
+                .header("X-API-Key", apiKey)
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, response) -> { })
+                .toBodilessEntity();
     }
 
     private String storedHashOf(UUID id) {
