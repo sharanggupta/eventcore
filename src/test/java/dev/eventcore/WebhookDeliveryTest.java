@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -88,6 +89,81 @@ class WebhookDeliveryTest extends IntegrationTestBase {
     }
 
     @Test
+    void aSuccessfulDeliveryRecordsItsAttempt() {
+        subscribe("recorded");
+
+        postEvent("order.packed", null);
+
+        await().atMost(PATIENCE).untilAsserted(() ->
+                assertThat(subscriber.inbox("recorded")).hasSize(1));
+        DeliveryDetail detail = theOnlyDeliveryDetail();
+        assertThat(detail.deliveryAttempts()).hasSize(1);
+        DeliveryAttempt attempt = detail.deliveryAttempts().getFirst();
+        assertThat(attempt.attempt()).isEqualTo(1);
+        assertThat(attempt.statusCode()).isEqualTo(200);
+        assertThat(attempt.error()).isNull();
+        assertThat(attempt.attemptedAt()).isNotNull();
+        assertThat(attempt.durationMs()).isNotNegative();
+    }
+
+    @Test
+    void everyRetryIsRecordedWithItsFailureCause() {
+        subscriber.failNextAttempts(4);
+        subscribe("retried");
+
+        postEvent("order.delayed", null);
+
+        await().atMost(PATIENCE).untilAsserted(() ->
+                assertThat(subscriber.inbox("retried")).hasSize(1));
+        DeliveryDetail detail = theOnlyDeliveryDetail();
+        assertThat(detail.deliveryAttempts()).hasSize(5);
+        assertThat(detail.deliveryAttempts()).extracting(DeliveryAttempt::attempt)
+                .containsExactly(1, 2, 3, 4, 5);
+        DeliveryAttempt firstFailure = detail.deliveryAttempts().getFirst();
+        assertThat(firstFailure.statusCode()).isEqualTo(500);
+        assertThat(firstFailure.responseSnippet()).contains("consumer exploded");
+        assertThat(detail.deliveryAttempts().getLast().statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void redeliveringAFailedDeliveryRunsAFreshCycle() {
+        subscriber.failNextAttempts(Integer.MAX_VALUE);
+        subscribe("recovering");
+        postEvent("order.stuck", null);
+        await().atMost(PATIENCE).untilAsserted(() ->
+                assertThat(theOnlyDelivery()).isEqualTo(new DeliveryRecord("failed", 5)));
+
+        subscriber.failNextAttempts(0);
+        var receipt = api().post()
+                .uri("/v1/deliveries/" + theOnlyDeliveryDetail().id() + "/redeliver")
+                .retrieve()
+                .toEntity(RedeliveryReceipt.class);
+
+        assertThat(receipt.getStatusCode().value()).isEqualTo(202);
+        assertThat(receipt.getBody().status()).isEqualTo("pending");
+        await().atMost(PATIENCE).untilAsserted(() ->
+                assertThat(theOnlyDelivery()).isEqualTo(new DeliveryRecord("delivered", 6)));
+        assertThat(theOnlyDeliveryDetail().deliveryAttempts().getLast().statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void aStillBrokenConsumerGetsAFreshCycleThenFailsAgain() {
+        subscriber.failNextAttempts(Integer.MAX_VALUE);
+        subscribe("hopeless");
+        postEvent("order.doomed", null);
+        await().atMost(PATIENCE).untilAsserted(() ->
+                assertThat(theOnlyDelivery()).isEqualTo(new DeliveryRecord("failed", 5)));
+
+        api().post()
+                .uri("/v1/deliveries/" + theOnlyDeliveryDetail().id() + "/redeliver")
+                .retrieve()
+                .toBodilessEntity();
+
+        await().atMost(PATIENCE).untilAsserted(() ->
+                assertThat(theOnlyDelivery()).isEqualTo(new DeliveryRecord("failed", 10)));
+    }
+
+    @Test
     void aFailingSubscriberIsRetriedUntilItAccepts() {
         subscriber.failNextAttempts(4);
         subscribe("flaky");
@@ -138,6 +214,11 @@ class WebhookDeliveryTest extends IntegrationTestBase {
                 .single();
     }
 
+    private DeliveryDetail theOnlyDeliveryDetail() {
+        UUID id = jdbc.sql("SELECT id FROM webhook_deliveries").query(UUID.class).single();
+        return api().get().uri("/v1/deliveries/" + id).retrieve().body(DeliveryDetail.class);
+    }
+
     private String hmacSignatureOf(String secret, String body) throws GeneralSecurityException {
         Mac hmac = Mac.getInstance("HmacSHA256");
         hmac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
@@ -155,11 +236,11 @@ class WebhookDeliveryTest extends IntegrationTestBase {
         private int port;
 
         @PostMapping("/stub/{inbox}")
-        ResponseEntity<Void> receive(@PathVariable String inbox,
-                                     @RequestHeader(value = "X-EventCore-Signature", required = false) String signature,
-                                     @RequestBody String body) {
+        ResponseEntity<String> receive(@PathVariable String inbox,
+                                       @RequestHeader(value = "X-EventCore-Signature", required = false) String signature,
+                                       @RequestBody String body) {
             if (failuresRemaining.getAndUpdate(remaining -> Math.max(0, remaining - 1)) > 0) {
-                return ResponseEntity.internalServerError().build();
+                return ResponseEntity.internalServerError().body("{\"error\": \"consumer exploded\"}");
             }
             inbox(inbox).add(new SignedCall(body, signature));
             return ResponseEntity.ok().build();

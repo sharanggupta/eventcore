@@ -76,6 +76,56 @@ class DeliveryQueryTest extends IntegrationTestBase {
     }
 
     @Test
+    void aDeliveryFromBeforeAttemptCaptureShowsAnEmptyHistory() {
+        OffsetDateTime now = OffsetDateTime.now();
+        insertDelivery("failed", 5, now);
+        UUID id = onlyDeliveryId();
+
+        DeliveryDetail detail = api().get().uri("/v1/deliveries/" + id)
+                .retrieve().body(DeliveryDetail.class);
+
+        assertThat(detail.id()).isEqualTo(id);
+        assertThat(detail.attempts()).isEqualTo(5);
+        assertThat(detail.deliveryAttempts()).isEmpty();
+    }
+
+    @Test
+    void anUnknownDeliveryIs404() {
+        ResponseEntity<ApiError> response = api().get().uri("/v1/deliveries/" + UUID.randomUUID())
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, res) -> { })
+                .toEntity(ApiError.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().error()).isEqualTo("delivery not found");
+    }
+
+    @Test
+    void redeliveringANonFailedDeliveryIs409() {
+        insertDelivery("delivered", 1, OffsetDateTime.now());
+
+        ResponseEntity<ApiError> response = api().post()
+                .uri("/v1/deliveries/" + onlyDeliveryId() + "/redeliver")
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, res) -> { })
+                .toEntity(ApiError.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().error()).isEqualTo("only failed deliveries can be redelivered");
+    }
+
+    @Test
+    void redeliveringAnUnknownDeliveryIs404() {
+        ResponseEntity<ApiError> response = api().post()
+                .uri("/v1/deliveries/" + UUID.randomUUID() + "/redeliver")
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, res) -> { })
+                .toEntity(ApiError.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void anUnknownStatusIsRejected() {
         ResponseEntity<ApiError> response = api().get().uri("/v1/deliveries?status=exploded")
                 .retrieve()
@@ -89,6 +139,10 @@ class DeliveryQueryTest extends IntegrationTestBase {
 
     private DeliveryPage listDeliveries(String query) {
         return api().get().uri("/v1/deliveries" + query).retrieve().body(DeliveryPage.class);
+    }
+
+    private UUID onlyDeliveryId() {
+        return jdbc.sql("SELECT id FROM webhook_deliveries").query(UUID.class).single();
     }
 
     private UUID insertSubscription() {

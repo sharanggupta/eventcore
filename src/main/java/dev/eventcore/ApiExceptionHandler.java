@@ -25,4 +25,10 @@ class ApiExceptionHandler {
     ApiError notFound(NotFoundException exception) {
         return new ApiError(exception.getMessage());
     }
+
+    @ExceptionHandler(ConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    ApiError conflict(ConflictException exception) {
+        return new ApiError(exception.getMessage());
+    }
 }
