@@ -77,6 +77,7 @@ captured output) or let the script prove everything at once:
 | [Five-minute walkthrough](docs/walkthrough.md) | Copy-paste tour of every feature with real outputs |
 | [Testing guide](docs/testing/README.md) | Reproducible test suite, e2e script, failure/recovery drill |
 | [Developer guide](docs/development.md) | Codebase tour, request lifecycle, how to add a feature |
+| [Integration examples](examples/README.md) | Runnable Spring Boot and Python apps that use EventCore end-to-end |
 | **Swagger UI** | `http://localhost:8080/swagger-ui.html` on any running instance (spec at `/v3/api-docs`) |
 | [Market positioning](docs/product/market-positioning.md) | Cited competitor pricing and where EventCore stands |
 
