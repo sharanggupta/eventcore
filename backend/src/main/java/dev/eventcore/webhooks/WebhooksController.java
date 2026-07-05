@@ -38,11 +38,11 @@ class WebhooksController {
         return webhooks.register(request.url(), request.subscribedTypes(), request.deliveredFields());
     }
 
-    @Operation(summary = "Change the eventTypes filter in place; id and secret are kept")
+    @Operation(summary = "Replace the eventTypes filter and payloadFields allow-list; id and secret are kept")
     @PatchMapping("/{id}")
     WebhookSubscription updateFilter(@PathVariable UUID id,
                                      @RequestBody UpdateWebhookFilterRequest request) {
-        if (!webhooks.updateFilter(id, request.subscribedTypes())) {
+        if (!webhooks.updateFilters(id, request.subscribedTypes(), request.deliveredFields())) {
             throw new NotFoundException("webhook subscription not found");
         }
         return webhooks.one(id);

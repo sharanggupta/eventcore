@@ -219,6 +219,12 @@ public class DeliveryOutbox {
         if (query.filtersByStatus()) {
             sql.append(" AND status = :status");
         }
+        if (query.boundedBelow()) {
+            sql.append(" AND created_at >= :from");
+        }
+        if (query.boundedAbove()) {
+            sql.append(" AND created_at <= :to");
+        }
         if (!query.startsFromTheTop()) {
             sql.append(" AND (created_at, id) < (:createdAt, :id)");
         }
@@ -228,6 +234,12 @@ public class DeliveryOutbox {
     private JdbcClient.StatementSpec bindConditions(JdbcClient.StatementSpec statement, DeliveryQuery query) {
         if (query.filtersByStatus()) {
             statement = statement.param("status", query.status());
+        }
+        if (query.boundedBelow()) {
+            statement = statement.param("from", query.from());
+        }
+        if (query.boundedAbove()) {
+            statement = statement.param("to", query.to());
         }
         if (!query.startsFromTheTop()) {
             statement = statement.param("createdAt", query.after().time()).param("id", query.after().id());

@@ -95,6 +95,12 @@ public class EventStore {
         if (query.filtersByType()) {
             sql.append(" AND type = :type");
         }
+        if (query.boundedBelow()) {
+            sql.append(" AND time >= :from");
+        }
+        if (query.boundedAbove()) {
+            sql.append(" AND time <= :to");
+        }
         if (!query.startsFromTheTop()) {
             sql.append(" AND (time, id) < (:time, :id)");
         }
@@ -104,6 +110,12 @@ public class EventStore {
     private JdbcClient.StatementSpec bindConditions(JdbcClient.StatementSpec statement, EventQuery query) {
         if (query.filtersByType()) {
             statement = statement.param("type", query.type());
+        }
+        if (query.boundedBelow()) {
+            statement = statement.param("from", query.from());
+        }
+        if (query.boundedAbove()) {
+            statement = statement.param("to", query.to());
         }
         if (!query.startsFromTheTop()) {
             statement = statement.param("time", query.after().time()).param("id", query.after().id());

@@ -179,6 +179,18 @@ class DeliveryQueryTest extends IntegrationTestBase {
     }
 
     @Test
+    void aTimeRangeReturnsOnlyDeliveriesWithinIt() {
+        OffsetDateTime now = OffsetDateTime.now();
+        insertDelivery("delivered", 1, now.minusHours(3));
+        insertDelivery("failed", 5, now.minusHours(2));
+        insertDelivery("pending", 0, now.minusMinutes(1));
+
+        DeliveryPage page = listDeliveries("?from=" + now.minusMinutes(150) + "&to=" + now.minusMinutes(60));
+
+        assertThat(page.items()).extracting(Delivery::status).containsExactly("failed");
+    }
+
+    @Test
     void anUnknownStatusIsRejected() {
         ResponseEntity<ApiError> response = api().get().uri("/v1/deliveries?status=exploded")
                 .retrieve()

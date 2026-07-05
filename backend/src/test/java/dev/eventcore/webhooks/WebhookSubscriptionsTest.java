@@ -224,6 +224,25 @@ class WebhookSubscriptionsTest extends IntegrationTestBase {
     }
 
     @Test
+    void updatingFiltersCanChangeThePayloadAllowListToo() {
+        RegisteredWebhook webhook = registerWebhook("""
+                {"url": "https://example.com/hooks/evolving", "payloadFields": ["orderId"]}
+                """).body(RegisteredWebhook.class);
+
+        WebhookSubscription updated = api().patch().uri("/v1/webhooks/" + webhook.id())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"eventTypes\": [\"order.placed\"], \"payloadFields\": [\"orderId\", \"item\"]}")
+                .retrieve()
+                .body(WebhookSubscription.class);
+
+        assertThat(updated.eventTypes()).containsExactly("order.placed");
+        assertThat(updated.payloadFields()).containsExactly("orderId", "item");
+
+        postEventWithCardNumber("order.placed");
+        assertThat(deliveredBodyFor(webhook.id())).contains("orderId").doesNotContain("cardNumber");
+    }
+
+    @Test
     void updatingTheFilterOfAnUnknownSubscriptionIs404() {
         ResponseEntity<ApiError> response = api().patch().uri("/v1/webhooks/" + UUID.randomUUID())
                 .contentType(MediaType.APPLICATION_JSON)

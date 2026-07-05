@@ -107,6 +107,35 @@ class EventQueryTest extends IntegrationTestBase {
     }
 
     @Test
+    void aTimeRangeReturnsOnlyEventsWithinIt() {
+        OffsetDateTime now = OffsetDateTime.now();
+        insertEvent("too.old", now.minusHours(3));
+        insertEvent("in.range", now.minusHours(2));
+        insertEvent("too.new", now.minusMinutes(1));
+
+        EventPage page = listEvents("?from=" + now.minusMinutes(150) + "&to=" + now.minusMinutes(60));
+
+        assertThat(page.items()).extracting(Event::type).containsExactly("in.range");
+    }
+
+    @Test
+    void aTimestampWithoutAnOffsetIsTreatedAsUtc() {
+        insertEvent("findable.event", OffsetDateTime.now());
+
+        EventPage page = listEvents("?from=2000-01-01T00:00");
+
+        assertThat(page.items()).extracting(Event::type).contains("findable.event");
+    }
+
+    @Test
+    void aMalformedTimeBoundIsRejected() {
+        ResponseEntity<ApiError> response = listEventsExpectingRejection("?from=yesterday-ish");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().error()).isEqualTo("from must be an ISO-8601 timestamp");
+    }
+
+    @Test
     void invalidCursorIsRejected() {
         ResponseEntity<ApiError> response = listEventsExpectingRejection("?cursor=not-a-cursor");
 

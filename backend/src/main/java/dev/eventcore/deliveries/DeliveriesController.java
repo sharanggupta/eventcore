@@ -31,8 +31,10 @@ class DeliveriesController {
 @Operation(summary = "List deliveries newest-first; filter by status pending/delivered/failed")
     @GetMapping    DeliveryPage list(@RequestParam(defaultValue = "50") int limit,
                       @RequestParam(required = false) String cursor,
-                      @RequestParam(required = false) String status) {
-        return deliveries.page(DeliveryQuery.of(limit, cursor, status));
+                      @RequestParam(required = false) String status,
+                      @RequestParam(required = false) String from,
+                      @RequestParam(required = false) String to) {
+        return deliveries.page(DeliveryQuery.of(limit, cursor, status, from, to));
     }
 
 @Operation(summary = "Delivery detail with the per-attempt history: status codes, errors, snippets, durations")

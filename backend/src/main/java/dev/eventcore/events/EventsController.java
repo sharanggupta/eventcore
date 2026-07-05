@@ -35,7 +35,9 @@ class EventsController {
 @Operation(summary = "List events newest-first with cursor pagination and optional type filter")
     @GetMapping    EventPage list(@RequestParam(defaultValue = "50") int limit,
                    @RequestParam(required = false) String cursor,
-                   @RequestParam(required = false) String type) {
-        return events.page(EventQuery.of(limit, cursor, type));
+                   @RequestParam(required = false) String type,
+                   @RequestParam(required = false) String from,
+                   @RequestParam(required = false) String to) {
+        return events.page(EventQuery.of(limit, cursor, type, from, to));
     }
 }

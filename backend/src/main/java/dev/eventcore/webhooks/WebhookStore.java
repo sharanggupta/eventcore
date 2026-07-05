@@ -36,11 +36,13 @@ class WebhookStore {
         return webhook;
     }
 
-    boolean updateFilter(UUID id, List<String> eventTypes) {
+    boolean updateFilters(UUID id, List<String> eventTypes, List<String> payloadFields) {
         int updated = jdbc.sql("UPDATE webhook_subscriptions "
-                        + "SET event_types = CAST(:eventTypes AS jsonb) WHERE id = :id")
+                        + "SET event_types = CAST(:eventTypes AS jsonb), "
+                        + "payload_fields = CAST(:payloadFields AS jsonb) WHERE id = :id")
                 .param("id", id)
                 .param("eventTypes", asJson(eventTypes), Types.VARCHAR)
+                .param("payloadFields", asJson(payloadFields), Types.VARCHAR)
                 .update();
         return updated > 0;
     }
