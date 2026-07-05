@@ -107,6 +107,56 @@ class EventQueryTest extends IntegrationTestBase {
     }
 
     @Test
+    void payloadFieldSearchReturnsOnlyMatchingEvents() {
+        OffsetDateTime now = OffsetDateTime.now();
+        insertEventWithPayload("user.searched", now.minusSeconds(3), "{\"userId\": \"u_123\", \"plan\": \"pro\"}");
+        insertEventWithPayload("user.searched", now.minusSeconds(2), "{\"userId\": \"u_999\"}");
+        insertEvent("payload.less", now.minusSeconds(1));
+
+        EventPage page = listEvents("?payload.userId=u_123");
+
+        assertThat(page.items()).hasSize(1);
+        assertThat(page.items().getFirst().payload().get("plan").asText()).isEqualTo("pro");
+    }
+
+    @Test
+    void payloadSearchMatchesNumbersByTheirTextForm() {
+        insertEventWithPayload("invoice.searched", OffsetDateTime.now(), "{\"amountCents\": 4900}");
+
+        EventPage page = listEvents("?payload.amountCents=4900");
+
+        assertThat(page.items()).hasSize(1);
+    }
+
+    @Test
+    void payloadSearchWalksNestedPathsAndComposesWithOtherFilters() {
+        OffsetDateTime now = OffsetDateTime.now();
+        insertEventWithPayload("order.searched", now.minusSeconds(2), "{\"order\": {\"id\": \"o1\"}}");
+        insertEventWithPayload("noise.searched", now.minusSeconds(1), "{\"order\": {\"id\": \"o1\"}}");
+
+        EventPage page = listEvents("?type=order.searched&payload.order.id=o1");
+
+        assertThat(page.items()).extracting(Event::type).containsExactly("order.searched");
+    }
+
+    @Test
+    void aBlankPayloadFilterFieldIsRejected() {
+        ResponseEntity<ApiError> response = listEventsExpectingRejection("?payload.=x");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().error()).isEqualTo("payload filter field must not be blank");
+    }
+
+    private void insertEventWithPayload(String type, OffsetDateTime time, String payload) {
+        jdbc.sql("INSERT INTO events (id, time, type, payload) VALUES (:id, :time, :type, CAST(:payload AS jsonb))")
+                .param("id", UUID.randomUUID())
+                .param("time", time)
+                .param("type", type)
+                .param("payload", payload)
+                .update();
+    }
+
+    @Test
     void aTimeRangeReturnsOnlyEventsWithinIt() {
         OffsetDateTime now = OffsetDateTime.now();
         insertEvent("too.old", now.minusHours(3));

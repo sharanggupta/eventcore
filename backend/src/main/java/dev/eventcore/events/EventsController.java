@@ -3,6 +3,8 @@ package dev.eventcore.events;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,12 +34,13 @@ class EventsController {
         return ingestion.ingest(request.type(), request.payload());
     }
 
-@Operation(summary = "List events newest-first with cursor pagination and optional type filter")
+@Operation(summary = "List events newest-first; filter by type, time range (from/to), and payload fields (payload.<field>=<value>, dotted paths for nesting)")
     @GetMapping    EventPage list(@RequestParam(defaultValue = "50") int limit,
                    @RequestParam(required = false) String cursor,
                    @RequestParam(required = false) String type,
                    @RequestParam(required = false) String from,
-                   @RequestParam(required = false) String to) {
-        return events.page(EventQuery.of(limit, cursor, type, from, to));
+                   @RequestParam(required = false) String to,
+                   @RequestParam Map<String, String> allParams) {
+        return events.page(EventQuery.of(limit, cursor, type, from, to, allParams));
     }
 }

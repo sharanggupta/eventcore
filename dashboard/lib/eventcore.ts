@@ -78,8 +78,14 @@ async function api<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function listEvents(params: { type?: string; cursor?: string; limit?: number; from?: string; to?: string }) {
-  return api<EventPage>(`/v1/events?${query(params)}`);
+export function listEvents(params: {
+  type?: string; cursor?: string; limit?: number; from?: string; to?: string;
+  payloadField?: string; payloadValue?: string;
+}) {
+  const { payloadField, payloadValue, ...rest } = params;
+  const search = new URLSearchParams(query(rest));
+  if (payloadField && payloadValue) search.set(`payload.${payloadField}`, payloadValue);
+  return api<EventPage>(`/v1/events?${search}`);
 }
 
 export function listDeliveries(params: { status?: string; cursor?: string; limit?: number; from?: string; to?: string }) {

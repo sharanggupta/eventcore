@@ -127,7 +127,7 @@ captured output) or let the script prove everything at once:
 | POST | `/v1/api-keys` | `X-Admin-Token` | Issue an API key (plaintext shown once) |
 | DELETE | `/v1/api-keys/{id}` | `X-Admin-Token` | Revoke a key immediately (record kept for audit) |
 | POST | `/v1/events` | `X-API-Key` | Ingest an event (`type` required, `payload` any JSON) |
-| GET | `/v1/events` | `X-API-Key` | List newest-first; `limit`, `cursor`, `type` |
+| GET | `/v1/events` | `X-API-Key` | List newest-first; `limit`, `cursor`, `type`, `from`/`to`, `payload.<field>=<value>` (dotted fields walk nesting; repeatable, AND-ed) |
 | POST | `/v1/webhooks` | `X-API-Key` | Register a webhook (`secret` shown once; optional `eventTypes` filter and `payloadFields` allow-list) |
 | GET | `/v1/webhooks` | `X-API-Key` | List subscriptions (never includes secrets) |
 | PATCH | `/v1/webhooks/{id}` | `X-API-Key` | Update `eventTypes` in place (same id, same secret) |

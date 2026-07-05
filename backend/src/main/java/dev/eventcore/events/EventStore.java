@@ -101,6 +101,10 @@ public class EventStore {
         if (query.boundedAbove()) {
             sql.append(" AND time <= :to");
         }
+        for (int i = 0; i < query.payloadFilters().size(); i++) {
+            sql.append(" AND payload #>> CAST(:payloadPath").append(i)
+                    .append(" AS text[]) = :payloadValue").append(i);
+        }
         if (!query.startsFromTheTop()) {
             sql.append(" AND (time, id) < (:time, :id)");
         }
@@ -116,6 +120,11 @@ public class EventStore {
         }
         if (query.boundedAbove()) {
             statement = statement.param("to", query.to());
+        }
+        List<PayloadFilter> filters = query.payloadFilters();
+        for (int i = 0; i < filters.size(); i++) {
+            statement = statement.param("payloadPath" + i, filters.get(i).pathLiteral())
+                    .param("payloadValue" + i, filters.get(i).value());
         }
         if (!query.startsFromTheTop()) {
             statement = statement.param("time", query.after().time()).param("id", query.after().id());

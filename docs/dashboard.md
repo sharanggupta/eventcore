@@ -35,6 +35,12 @@ The log, newest first, one event per row (UTC timestamp · type badge · id).
 - **Click a row** to expand the full payload as pretty-printed JSON.
 - **Filter** by exact type with the input top-right (URL-driven:
   `/events?type=invoice.paid` is shareable).
+- **Payload search**: give a payload field and value to find every event
+  whose payload carries it — `userId` + `u_123` finds `{"userId": "u_123"}`.
+  Dotted fields walk into nested objects (`order.id` matches
+  `{"order": {"id": ...}}`), numbers match by their text form
+  (`amountCents` + `4900`), and it composes with the type filter, time
+  range, and pagination.
 - **Paginate** with `Older ⟶` / `⟵ Newest` — cursor-based, no page drift.
 
 ### Deliveries `/deliveries`
