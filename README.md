@@ -76,6 +76,7 @@ captured output) or let the script prove everything at once:
 |---|---|
 | [Five-minute walkthrough](docs/walkthrough.md) | Copy-paste tour of every feature with real outputs |
 | [Testing guide](docs/testing/README.md) | Reproducible test suite, e2e script, failure/recovery drill |
+| [Developer guide](docs/development.md) | Codebase tour, request lifecycle, how to add a feature |
 | **Swagger UI** | `http://localhost:8080/swagger-ui.html` on any running instance (spec at `/v3/api-docs`) |
 | [Market positioning](docs/product/market-positioning.md) | Cited competitor pricing and where EventCore stands |
 
@@ -135,11 +136,15 @@ Webhook tuning (`eventcore.webhooks` in
 
 - **Self-hosted: free, forever, full-featured.** Apache-licensed, no
   open-core gating — the version in this repo is the whole product.
-- **Managed (planned): one flat price, unlimited events.** A dedicated
+- **Managed (planned): one flat price, no per-event metering.** A dedicated
   single-tenant instance on EU infrastructure (Hetzner — GDPR-friendly,
-  ISO 27001). No per-event metering: at 1M events/month, metered competitors
-  cluster between $189 and $1,188/month ([evidence](docs/product/market-positioning.md));
-  a flat coffee-budget price is the point.
+  ISO 27001). At 1M events/month, metered competitors cluster between $189
+  and $1,188/month ([evidence](docs/product/market-positioning.md)); nobody
+  sells 12-month retention below ~$1,200/month. The honest unit of a flat
+  price is **retention, not event count**: generous fair-use rates with a
+  published rotation ladder (compress → archive → never a surprise bill,
+  never blocked ingest) — the full economics are worked in
+  [hosting-feasibility.md](docs/product/hosting-feasibility.md).
 
 ## Development
 
