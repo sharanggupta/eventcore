@@ -78,11 +78,11 @@ async function api<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function listEvents(params: { type?: string; cursor?: string; limit?: number }) {
+export function listEvents(params: { type?: string; cursor?: string; limit?: number; from?: string; to?: string }) {
   return api<EventPage>(`/v1/events?${query(params)}`);
 }
 
-export function listDeliveries(params: { status?: string; cursor?: string; limit?: number }) {
+export function listDeliveries(params: { status?: string; cursor?: string; limit?: number; from?: string; to?: string }) {
   return api<DeliveryPage>(`/v1/deliveries?${query(params)}`);
 }
 
@@ -112,6 +112,21 @@ export async function registerWebhook(input: {
   const body = await response.json();
   if (!response.ok) throw new Error(body.error ?? `EventCore answered ${response.status}`);
   return body as RegisteredWebhook;
+}
+
+export async function updateWebhookFilters(id: string, input: {
+  eventTypes?: string[];
+  payloadFields?: string[];
+}): Promise<void> {
+  const response = await fetch(`${BASE}/v1/webhooks/${id}`, {
+    method: "PATCH",
+    headers: { "X-API-Key": KEY, "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error ?? `filter update answered ${response.status}`);
+  }
 }
 
 export async function removeWebhook(id: string): Promise<void> {
@@ -182,4 +197,17 @@ function query(params: Record<string, string | number | undefined>): string {
     if (value !== undefined && value !== "") search.set(key, String(value));
   }
   return search.toString();
+}
+
+/** Kibana-style presets: resolve ?since=15m|1h|24h|7d (or explicit from/to) to API bounds. */
+export const SINCE_PRESETS = ["15m", "1h", "24h", "7d"] as const;
+
+const SINCE_MINUTES: Record<string, number> = { "15m": 15, "1h": 60, "24h": 1440, "7d": 10080 };
+
+export function resolveTimeRange(params: { since?: string; from?: string; to?: string }): {
+  from?: string; to?: string;
+} {
+  if (params.from || params.to) return { from: params.from, to: params.to };
+  const minutes = params.since ? SINCE_MINUTES[params.since] : undefined;
+  return minutes ? { from: new Date(Date.now() - minutes * 60_000).toISOString() } : {};
 }

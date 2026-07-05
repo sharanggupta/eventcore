@@ -28,9 +28,9 @@ npm run dev                          # http://localhost:3000
 | Route | What it shows |
 |---|---|
 | `/` | Overview: stat cards, delivery-status donut, ingest-per-hour bars, attempt outcomes, per-type flow health |
-| `/events` | The log, newest first: filter by type, click a row for the full payload, page older with the cursor |
-| `/deliveries` | Outbox by status tab; per-attempt timelines; inline **Retry** per failed row + **Redeliver all failed** |
-| `/webhooks` | Register (secret shown once, in the UI), inspect filters, delete |
+| `/events` | The log, newest first: type filter, Kibana-style time ranges (presets + custom), click a row for the payload, cursor pagination |
+| `/deliveries` | Outbox by status tab + time ranges; per-attempt timelines; inline **Retry**, **Redeliver all failed**, auto-refresh while pending |
+| `/webhooks` | Register (secret shown once), **edit filters in place**, delete |
 | `/consumers` | Pull-consumer fleet with per-consumer lag — the screen no competitor has |
 
 Full user guide: [docs/dashboard.md](../docs/dashboard.md).

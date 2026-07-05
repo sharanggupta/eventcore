@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { GlassCard, StatusBadge, fmtTime } from "@/components/ui";
 import { deliveryDetail, redeliver } from "@/lib/eventcore";
+import { AutoRefresh } from "@/components/auto-refresh";
 
 export default async function DeliveryDetailPage({ params }: {
   params: Promise<{ id: string }>;
@@ -17,6 +18,7 @@ export default async function DeliveryDetailPage({ params }: {
 
   return (
     <div className="space-y-6">
+      {delivery.status === "pending" && <AutoRefresh seconds={3} />}
       <div className="flex items-center justify-between">
         <div>
           <Link href="/deliveries" className="text-sm text-slate-500 hover:text-slate-300">

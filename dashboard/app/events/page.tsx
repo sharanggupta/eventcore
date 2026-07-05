@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { EventRow } from "@/components/event-row";
 import { GlassCard } from "@/components/ui";
-import { listEvents } from "@/lib/eventcore";
+import { listEvents, resolveTimeRange } from "@/lib/eventcore";
+import { TimeRange } from "@/components/time-range";
 
 export default async function EventsPage({ searchParams }: {
-  searchParams: Promise<{ type?: string; cursor?: string }>;
+  searchParams: Promise<{ type?: string; cursor?: string; since?: string; from?: string; to?: string }>;
 }) {
-  const { type, cursor } = await searchParams;
-  const page = await listEvents({ type, cursor, limit: 25 });
+  const { type, cursor, since, from, to } = await searchParams;
+  const range = resolveTimeRange({ since, from, to });
+  const page = await listEvents({ type, cursor, limit: 25, ...range });
 
   return (
     <div className="space-y-6">
@@ -25,6 +27,8 @@ export default async function EventsPage({ searchParams }: {
           </button>
         </form>
       </div>
+
+      <TimeRange basePath="/events" keep={{ type }} since={since} from={from} to={to} />
 
       <GlassCard className="!p-0">
         {page.items.map((event) => <EventRow key={event.id} event={event} />)}
@@ -44,7 +48,7 @@ export default async function EventsPage({ searchParams }: {
         )}
         {page.nextCursor && (
           <Link
-            href={`/events?${type ? `type=${type}&` : ""}cursor=${encodeURIComponent(page.nextCursor)}`}
+            href={`/events?${new URLSearchParams(Object.entries({ type, since, from, to, cursor: page.nextCursor }).filter(([, v]) => v) as [string, string][])}`}
             className="glass px-4 py-2 text-sm text-cyan-300 transition hover:bg-white/10"
             data-testid="older-page"
           >

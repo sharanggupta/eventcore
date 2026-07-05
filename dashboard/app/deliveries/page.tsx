@@ -2,20 +2,25 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redeliver, redeliverAllFailed } from "@/lib/eventcore";
 import { GlassCard, StatusBadge, ago } from "@/components/ui";
-import { listDeliveries } from "@/lib/eventcore";
+import { listDeliveries, resolveTimeRange } from "@/lib/eventcore";
+import { TimeRange } from "@/components/time-range";
+import { AutoRefresh } from "@/components/auto-refresh";
 
 const TABS = ["all", "pending", "delivered", "failed"] as const;
 
 export default async function DeliveriesPage({ searchParams }: {
-  searchParams: Promise<{ status?: string; cursor?: string }>;
+  searchParams: Promise<{ status?: string; cursor?: string; since?: string; from?: string; to?: string }>;
 }) {
-  const { status, cursor } = await searchParams;
+  const { status, cursor, since, from, to } = await searchParams;
   const active = status ?? "all";
+  const range = resolveTimeRange({ since, from, to });
   const page = await listDeliveries({
     status: active === "all" ? undefined : active,
     cursor,
     limit: 25,
+    ...range,
   });
+  const hasPending = page.items.some((delivery) => delivery.status === "pending");
 
   return (
     <div className="space-y-6">
@@ -37,6 +42,9 @@ export default async function DeliveriesPage({ searchParams }: {
           ))}
         </div>
       </div>
+
+      <TimeRange basePath="/deliveries" keep={{ status }} since={since} from={from} to={to} />
+      {hasPending && <AutoRefresh seconds={3} />}
 
       {active === "failed" && page.items.length > 0 && (
         <form action={async () => {

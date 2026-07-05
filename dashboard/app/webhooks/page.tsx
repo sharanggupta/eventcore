@@ -1,3 +1,4 @@
+import { EditWebhookFilters } from "@/components/edit-webhook-filters";
 import { RegisterWebhookForm } from "@/components/register-webhook";
 import { GlassCard, TypeBadge, ago } from "@/components/ui";
 import { listWebhooks } from "@/lib/eventcore";
@@ -15,12 +16,12 @@ export default async function WebhooksPage() {
       </GlassCard>
 
       <GlassCard className="!p-0">
-        <div className="grid grid-cols-[2fr_1fr_1fr_6rem_5rem] gap-3 border-b border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
+        <div className="grid grid-cols-[2fr_1fr_1fr_5rem_11rem] gap-3 border-b border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
           <span>Endpoint</span><span>Event types</span><span>Payload fields</span><span>Created</span><span></span>
         </div>
         {webhooks.map((webhook) => (
           <div key={webhook.id}
-               className="grid grid-cols-[2fr_1fr_1fr_6rem_5rem] items-center gap-3 border-b border-white/5 px-4 py-3 last:border-0"
+               className="grid grid-cols-[2fr_1fr_1fr_5rem_11rem] items-center gap-3 border-b border-white/5 px-4 py-3 last:border-0"
                data-testid="webhook-row">
             <span className="mono truncate text-sm text-slate-200">{webhook.url}</span>
             <span className="flex flex-wrap gap-1">
@@ -32,11 +33,15 @@ export default async function WebhooksPage() {
                 <span className="text-xs text-slate-500">full payload</span>}
             </span>
             <span className="text-xs text-slate-500">{ago(webhook.createdAt)}</span>
-            <form action={removeAction.bind(null, webhook.id)}>
-              <button className="rounded-xl px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-400/10">
-                Delete
-              </button>
-            </form>
+            <span className="flex items-center justify-end gap-1">
+              <EditWebhookFilters id={webhook.id} eventTypes={webhook.eventTypes}
+                                  payloadFields={webhook.payloadFields} />
+              <form action={removeAction.bind(null, webhook.id)}>
+                <button className="rounded-xl px-3 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-400/10">
+                  Delete
+                </button>
+              </form>
+            </span>
           </div>
         ))}
         {webhooks.length === 0 && (

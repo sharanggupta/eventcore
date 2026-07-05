@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { registerWebhook, removeWebhook, type RegisteredWebhook } from "@/lib/eventcore";
+import { registerWebhook, removeWebhook, updateWebhookFilters, type RegisteredWebhook } from "@/lib/eventcore";
 
 export type RegisterResult =
   | { ok: true; webhook: RegisteredWebhook }
@@ -29,4 +29,19 @@ export async function removeAction(id: string): Promise<void> {
 function splitList(value: FormDataEntryValue | null): string[] | undefined {
   const items = String(value ?? "").split(",").map((item) => item.trim()).filter(Boolean);
   return items.length > 0 ? items : undefined;
+}
+
+export type UpdateResult = { ok: true } | { ok: false; error: string } | null;
+
+export async function updateFiltersAction(id: string, _previous: UpdateResult, form: FormData): Promise<UpdateResult> {
+  try {
+    await updateWebhookFilters(id, {
+      eventTypes: splitList(form.get("eventTypes")),
+      payloadFields: splitList(form.get("payloadFields")),
+    });
+    revalidatePath("/webhooks");
+    return { ok: true };
+  } catch (failure) {
+    return { ok: false, error: failure instanceof Error ? failure.message : "update failed" };
+  }
 }
