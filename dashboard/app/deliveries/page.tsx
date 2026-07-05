@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
+import { redeliverAllFailed } from "@/lib/eventcore";
 import { GlassCard, StatusBadge, ago } from "@/components/ui";
 import { listDeliveries } from "@/lib/eventcore";
 
@@ -35,6 +37,19 @@ export default async function DeliveriesPage({ searchParams }: {
           ))}
         </div>
       </div>
+
+      {active === "failed" && page.items.length > 0 && (
+        <form action={async () => {
+          "use server";
+          await redeliverAllFailed();
+          revalidatePath("/deliveries");
+        }}>
+          <button className="glass px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-white/10"
+                  data-testid="redeliver-all">
+            Redeliver all failed ({page.items.length}{page.nextCursor ? "+" : ""})
+          </button>
+        </form>
+      )}
 
       <GlassCard className="!p-0">
         <div className="grid grid-cols-[6rem_1fr_5rem_6rem] gap-3 border-b border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-500">

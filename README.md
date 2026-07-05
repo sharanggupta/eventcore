@@ -41,7 +41,8 @@ per-type last-received timestamp that catches producers going silent.
 
 **See** — a tenant dashboard ([dashboard/](dashboard)) with pipeline charts, a
 browsable event log (filter, paginate, click for payloads), delivery attempt
-timelines with one-click redelivery, and per-consumer lag.
+timelines with single and bulk redelivery, webhook management (secrets
+revealed once, in the UI), and per-consumer lag.
 
 **Secure** — API keys hashed at rest, shown once, revocable instantly;
 admin-token-guarded key management; deliveries verifiable by receivers.

@@ -38,9 +38,17 @@ The log, newest first, one event per row (UTC timestamp · type badge · id).
 The outbox with status tabs (all / pending / delivered / failed). Click any
 delivery for its **per-attempt timeline**: attempt number, status code or
 transport error, response snippet, duration, timestamp. Failed deliveries have
-a **Redeliver now** button — it requeues through the same API
-(`POST /v1/deliveries/{id}/redeliver`) and the page refreshes as the
-dispatcher picks it up.
+a **Redeliver now** button, and the failed tab has **Redeliver all failed**
+for whole-outage recovery. Both requeue through the same API the curl
+examples use — the always-running dispatcher picks requeued deliveries up
+within its poll interval (1s by default), so there is nothing to "trigger":
+recovery is a state change, not a manual dispatch.
+
+### Webhooks `/webhooks`
+Manage subscriptions without curl: **register** (URL, optional event-type
+filter and payload-field allow-list) — the signing secret is revealed exactly
+once, in the UI, right after creation; **delete** removes a subscription and
+its delivery history. The list shows each endpoint's filters at a glance.
 
 ### Consumers `/consumers`
 Every pull subscription with its **lag** (events not yet committed past,

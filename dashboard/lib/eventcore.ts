@@ -45,6 +45,16 @@ export type PullSubscriptionStatus = {
   createdAt: string;
 };
 
+export type Webhook = {
+  id: string;
+  createdAt: string;
+  url: string;
+  eventTypes: string[] | null;
+  payloadFields: string[] | null;
+};
+
+export type RegisteredWebhook = Webhook & { secret: string };
+
 export type Metrics = {
   deliveries: { pending: number; delivered: number; failed: number };
   oldestPendingAgeSeconds: number;
@@ -83,6 +93,44 @@ export function deliveryDetail(id: string) {
 export async function pullFleet() {
   const fleet = await api<{ items: PullSubscriptionStatus[] }>("/v1/pull-subscriptions");
   return fleet.items;
+}
+
+export function listWebhooks() {
+  return api<Webhook[]>("/v1/webhooks");
+}
+
+export async function registerWebhook(input: {
+  url: string;
+  eventTypes?: string[];
+  payloadFields?: string[];
+}): Promise<RegisteredWebhook> {
+  const response = await fetch(`${BASE}/v1/webhooks`, {
+    method: "POST",
+    headers: { "X-API-Key": KEY, "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error ?? `EventCore answered ${response.status}`);
+  return body as RegisteredWebhook;
+}
+
+export async function removeWebhook(id: string): Promise<void> {
+  const response = await fetch(`${BASE}/v1/webhooks/${id}`, {
+    method: "DELETE",
+    headers: { "X-API-Key": KEY },
+  });
+  if (!response.ok) throw new Error(`delete answered ${response.status}`);
+}
+
+export async function redeliverAllFailed(): Promise<number> {
+  const response = await fetch(`${BASE}/v1/deliveries/redeliver`, {
+    method: "POST",
+    headers: { "X-API-Key": KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "failed" }),
+  });
+  if (!response.ok) throw new Error(`bulk redelivery answered ${response.status}`);
+  const batch = (await response.json()) as { requeued: number };
+  return batch.requeued;
 }
 
 export async function redeliver(id: string): Promise<void> {
