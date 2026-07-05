@@ -24,12 +24,12 @@ public class DeliveryOutbox {
 
     private final JdbcClient jdbc;
     private final ObjectMapper json;
-    private final WebhookProperties webhooks;
+    private final DeliveryProperties properties;
 
-    DeliveryOutbox(JdbcClient jdbc, ObjectMapper json, WebhookProperties webhooks) {
+    DeliveryOutbox(JdbcClient jdbc, ObjectMapper json, DeliveryProperties properties) {
         this.jdbc = jdbc;
         this.json = json;
-        this.webhooks = webhooks;
+        this.properties = properties;
     }
 
     public void enqueue(Event event) {
@@ -42,7 +42,7 @@ public class DeliveryOutbox {
                 .param("eventId", event.id())
                 .param("type", event.type())
                 .param("body", json.writeValueAsString(event))
-                .param("givesUpAfter", webhooks.maxAttempts())
+                .param("givesUpAfter", properties.maxAttempts())
                 .update();
     }
 
@@ -84,7 +84,7 @@ public class DeliveryOutbox {
                 WHERE id = :id AND status = 'failed'
                 """)
                 .param("id", id)
-                .param("maxAttempts", webhooks.maxAttempts())
+                .param("maxAttempts", properties.maxAttempts())
                 .update();
         if (requeued == 0) {
             throw exists(id)
@@ -103,7 +103,7 @@ public class DeliveryOutbox {
         if (request.scopedToOneSubscription()) {
             sql.append(" AND subscription_id = :subscriptionId");
         }
-        var statement = jdbc.sql(sql.toString()).param("maxAttempts", webhooks.maxAttempts());
+        var statement = jdbc.sql(sql.toString()).param("maxAttempts", properties.maxAttempts());
         if (request.scopedToOneSubscription()) {
             statement = statement.param("subscriptionId", request.subscriptionId());
         }
@@ -129,8 +129,8 @@ public class DeliveryOutbox {
                 WHERE id = :id
                 """)
                 .param("id", delivery.id())
-                .param("maxAttempts", webhooks.maxAttempts())
-                .param("backoffMillis", webhooks.retryBackoff().toMillis())
+                .param("maxAttempts", properties.maxAttempts())
+                .param("backoffMillis", properties.retryBackoff().toMillis())
                 .update();
         recordAttempt(delivery, outcome);
     }

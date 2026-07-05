@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
 
+/** Bound from the eventcore.webhooks prefix (the user-facing name of the feature). */
 @ConfigurationProperties("eventcore.webhooks")
-record WebhookProperties(Duration pollInterval, Duration retryBackoff, int maxAttempts) {
+record DeliveryProperties(Duration pollInterval, Duration retryBackoff, int maxAttempts) {
 }
