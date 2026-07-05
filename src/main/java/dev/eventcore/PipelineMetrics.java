@@ -40,6 +40,15 @@ class PipelineMetrics {
         return jdbc.sql("SELECT count(*) FROM events").query(Long.class).single();
     }
 
+    Map<String, Long> lastReceivedEpochSecondsByType() {
+        Map<String, Long> lastReceived = new LinkedHashMap<>();
+        jdbc.sql("SELECT type, EXTRACT(EPOCH FROM MAX(time))::bigint AS last_received "
+                        + "FROM events GROUP BY type ORDER BY type")
+                .query((row, rowNumber) -> lastReceived.put(row.getString("type"), row.getLong("last_received")))
+                .list();
+        return lastReceived;
+    }
+
     Map<String, Long> deliveryAttemptsByResult() {
         Map<String, Long> counts = new LinkedHashMap<>(Map.of("accepted", 0L, "rejected", 0L));
         jdbc.sql("""

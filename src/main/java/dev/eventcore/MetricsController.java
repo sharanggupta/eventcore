@@ -33,6 +33,11 @@ class MetricsController {
         pipeline.deliveryAttemptsByResult().forEach((result, count) ->
                 labelled(exposition, "eventcore_delivery_attempts_total", "result", result, count));
 
+        typeHeader(exposition, "eventcore_event_last_received_timestamp_seconds",
+                "When each event type last arrived; alert on time() - this > 900");
+        pipeline.lastReceivedEpochSecondsByType().forEach((type, epochSeconds) ->
+                labelled(exposition, "eventcore_event_last_received_timestamp_seconds", "type", type, epochSeconds));
+
         return exposition.toString();
     }
 

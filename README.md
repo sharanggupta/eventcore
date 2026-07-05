@@ -288,6 +288,31 @@ Stop the stack with `docker compose down` (add `-v` to also wipe the data).
 Errors always come back as `{"error": "<what went wrong>"}` with `400`
 (invalid request), `401` (missing/bad credentials), or `404` (no such thing).
 
+## Monitoring
+
+`GET /metrics` serves Prometheus text without authentication (scrape it from
+inside your network):
+
+- `eventcore_deliveries{status="pending|delivered|failed"}` — outbox state
+- `eventcore_oldest_pending_delivery_age_seconds` — backlog age (0 when clear)
+- `eventcore_events_ingested_total` — size of the event log
+- `eventcore_delivery_attempts_total{result="accepted|rejected"}` — attempt outcomes
+- `eventcore_event_last_received_timestamp_seconds{type="..."}` — when each
+  event type last arrived
+
+**Detecting stopped flow**: a producer that goes silent is invisible in error
+logs — alert on the last-received timestamp instead. Prometheus rule:
+
+```yaml
+- alert: EventFlowStopped
+  expr: time() - eventcore_event_last_received_timestamp_seconds > 900
+  for: 5m
+  annotations:
+    summary: "No {{ $labels.type }} events for over 15 minutes"
+```
+
+Alert on dead-lettering with `increase(eventcore_deliveries{status="failed"}[15m]) > 0`.
+
 ## Configuration
 
 Set in [.env](.env) (used by Docker Compose) or as environment variables:

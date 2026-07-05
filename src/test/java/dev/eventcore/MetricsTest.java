@@ -74,6 +74,22 @@ class MetricsTest extends IntegrationTestBase {
         assertThat(metrics).contains("eventcore_delivery_attempts_total{result=\"rejected\"} 1");
     }
 
+    @Test
+    void theLastReceivedTimestampIsReportedPerEventType() {
+        OffsetDateTime lastOrder = OffsetDateTime.now().minusSeconds(30);
+        insertEvent("order.placed", OffsetDateTime.now().minusSeconds(500));
+        insertEvent("order.placed", lastOrder);
+        insertEvent("invoice.paid", OffsetDateTime.now());
+
+        String metrics = scrapeMetrics();
+
+        assertThat(metrics).contains("# TYPE eventcore_event_last_received_timestamp_seconds gauge");
+        double reported = metricValue(metrics,
+                "eventcore_event_last_received_timestamp_seconds{type=\"order.placed\"}");
+        assertThat(reported).isCloseTo(lastOrder.toEpochSecond(), org.assertj.core.data.Offset.offset(1.0));
+        assertThat(metrics).contains("eventcore_event_last_received_timestamp_seconds{type=\"invoice.paid\"}");
+    }
+
     private String scrapeMetrics() {
         return anonymousApi().get().uri("/metrics").retrieve().body(String.class);
     }
