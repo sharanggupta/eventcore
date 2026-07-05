@@ -29,7 +29,7 @@ npm run dev                          # http://localhost:3000
 |---|---|
 | `/` | Overview: stat cards, delivery-status donut, ingest-per-hour bars, attempt outcomes, per-type flow health |
 | `/events` | The log, newest first: filter by type, click a row for the full payload, page older with the cursor |
-| `/deliveries` | Outbox by status tab; per-attempt timelines; **Redeliver now** + **Redeliver all failed** |
+| `/deliveries` | Outbox by status tab; per-attempt timelines; inline **Retry** per failed row + **Redeliver all failed** |
 | `/webhooks` | Register (secret shown once, in the UI), inspect filters, delete |
 | `/consumers` | Pull-consumer fleet with per-consumer lag — the screen no competitor has |
 

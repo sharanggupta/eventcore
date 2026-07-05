@@ -37,9 +37,9 @@ The log, newest first, one event per row (UTC timestamp · type badge · id).
 ### Deliveries `/deliveries`
 The outbox with status tabs (all / pending / delivered / failed). Click any
 delivery for its **per-attempt timeline**: attempt number, status code or
-transport error, response snippet, duration, timestamp. Failed deliveries have
-a **Redeliver now** button, and the failed tab has **Redeliver all failed**
-for whole-outage recovery. Both requeue through the same API the curl
+transport error, response snippet, duration, timestamp. Every failed delivery has a **Retry** button right on its list row (plus
+**Redeliver now** on the detail page), and the failed tab has
+**Redeliver all failed** for whole-outage recovery. Both requeue through the same API the curl
 examples use — the always-running dispatcher picks requeued deliveries up
 within its poll interval (1s by default), so there is nothing to "trigger":
 recovery is a state change, not a manual dispatch.

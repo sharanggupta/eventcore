@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { redeliverAllFailed } from "@/lib/eventcore";
+import { redeliver, redeliverAllFailed } from "@/lib/eventcore";
 import { GlassCard, StatusBadge, ago } from "@/components/ui";
 import { listDeliveries } from "@/lib/eventcore";
 
@@ -52,21 +52,37 @@ export default async function DeliveriesPage({ searchParams }: {
       )}
 
       <GlassCard className="!p-0">
-        <div className="grid grid-cols-[6rem_1fr_5rem_6rem] gap-3 border-b border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          <span>Status</span><span>Delivery</span><span>Attempts</span><span>Created</span>
+        <div className="grid grid-cols-[6rem_1fr_5rem_6rem_5rem] gap-3 border-b border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          <span>Status</span><span>Delivery</span><span>Attempts</span><span>Created</span><span></span>
         </div>
         {page.items.map((delivery) => (
-          <Link
+          <div
             key={delivery.id}
-            href={`/deliveries/${delivery.id}`}
-            className="grid grid-cols-[6rem_1fr_5rem_6rem] items-center gap-3 border-b border-white/5 px-4 py-3 transition last:border-0 hover:bg-white/5"
+            className="grid grid-cols-[6rem_1fr_5rem_6rem_5rem] items-center gap-3 border-b border-white/5 px-4 py-2.5 transition last:border-0 hover:bg-white/5"
             data-testid="delivery-row"
           >
             <span><StatusBadge status={delivery.status} /></span>
-            <span className="mono truncate text-xs text-slate-400">{delivery.id}</span>
+            <Link href={`/deliveries/${delivery.id}`}
+                  className="mono truncate text-xs text-slate-400 underline-offset-4 hover:text-cyan-300 hover:underline">
+              {delivery.id}
+            </Link>
             <span className="mono text-sm text-slate-300">{delivery.attempts}</span>
             <span className="text-xs text-slate-500">{ago(delivery.createdAt)}</span>
-          </Link>
+            <span>
+              {delivery.status === "failed" && (
+                <form action={async () => {
+                  "use server";
+                  await redeliver(delivery.id);
+                  revalidatePath("/deliveries");
+                }}>
+                  <button className="rounded-xl px-3 py-1.5 text-xs font-medium text-cyan-300 transition hover:bg-cyan-400/10"
+                          data-testid="retry-one">
+                    Retry
+                  </button>
+                </form>
+              )}
+            </span>
+          </div>
         ))}
         {page.items.length === 0 && (
           <div className="px-4 py-8 text-center text-sm text-slate-500">
