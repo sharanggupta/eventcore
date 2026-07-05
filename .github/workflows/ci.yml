@@ -19,3 +19,4 @@ jobs:
 
       - name: Build and test
         run: ./mvnw --batch-mode verify
+        working-directory: backend

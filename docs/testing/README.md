@@ -9,10 +9,10 @@ prerequisites and the exact commands.
 TimescaleDB container).
 
 ```bash
-./mvnw test
+cd backend && ./mvnw test
 ```
 
-Expected: `Tests run: 72, Failures: 0, Errors: 0` (count grows with features).
+Expected: `Tests run: 86, Failures: 0, Errors: 0` (count grows with features).
 
 The suite is integration-first: every test boots the real Spring context
 against a real TimescaleDB and talks HTTP through the same API clients a user

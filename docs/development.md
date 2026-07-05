@@ -5,7 +5,7 @@ how to add a feature the way the existing ones were added.
 
 ## The map
 
-Everything is under [`src/main/java/dev/eventcore`](../src/main/java/dev/eventcore),
+Everything is under [`backend/src/main/java/dev/eventcore`](../backend/src/main/java/dev/eventcore),
 one package per capability. Three conventions make any file findable:
 
 - `*Controller` — the HTTP surface (thin: validate, delegate, return a record)
@@ -53,7 +53,7 @@ Every feature here was built the same way — copy it:
    shared Testcontainers TimescaleDB for the whole suite). Test names read as
    sentences: `aRevokedKeyStopsAuthenticating`.
 2. **Migration**: next `V<N>__<what>.sql` in
-   [`src/main/resources/db/migration`](../src/main/resources/db/migration).
+   [`backend/src/main/resources/db/migration`](../backend/src/main/resources/db/migration).
    Migrations are append-only; never edit an applied one.
 3. **Green**: request record with `validate()` → store method with the SQL →
    controller method. Error paths throw the `api` exceptions; new status codes
@@ -68,10 +68,10 @@ Every feature here was built the same way — copy it:
 ## Running things
 
 ```bash
-./mvnw test                    # full suite (Docker required; ~1 min)
-./mvnw test -Dtest=SmokeTest   # one class
-docker compose up --build -d   # run the product
-./scripts/walkthrough.sh       # assert the product end-to-end
+cd backend && ./mvnw test      # full suite (Docker required; ~1 min)
+./mvnw test -Dtest=SmokeTest   # one class (from backend/)
+docker compose up --build -d   # run the product (from the repo root)
+./scripts/walkthrough.sh       # assert the product end-to-end (from the repo root)
 ```
 
 More detail in the [testing guide](testing/README.md).

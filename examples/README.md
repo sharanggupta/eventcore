@@ -48,7 +48,7 @@ SECRET=$(echo "$WEBHOOK" | jq -r .secret)
 
 # 2. start the demo with its credentials
 EVENTCORE_API_KEY=$KEY EVENTCORE_WEBHOOK_SECRET=$SECRET \
-  ./mvnw -f examples/spring-boot-demo/pom.xml spring-boot:run
+  backend/mvnw -f examples/spring-boot-demo/pom.xml spring-boot:run
 
 # 3. place an order - watch the demo log "verified delivery: {...order.placed...}"
 curl -s -X POST http://localhost:8081/orders \

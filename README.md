@@ -70,6 +70,16 @@ captured output) or let the script prove everything at once:
 ./scripts/walkthrough.sh   # -> All checks passed.
 ```
 
+## Repository layout
+
+| Directory | What it is |
+|---|---|
+| [`backend/`](backend) | The EventCore service: Spring Boot 4 + TimescaleDB |
+| [`dashboard/`](dashboard) | Tenant web dashboard (Next.js — planned, [M11](https://github.com/sharanggupta/eventcore/milestone/12)) |
+| [`examples/`](examples) | Runnable integration examples (Spring Boot, Python) |
+| [`docs/`](docs) | Walkthrough, testing and developer guides, product research |
+| [`scripts/`](scripts) | End-to-end walkthrough script, local webhook listener |
+
 ## Documentation
 
 | | |
@@ -130,7 +140,7 @@ Set in [.env](.env) (used by Docker Compose) or as environment variables:
 | ADMIN_TOKEN | (unset) | Token for key management; those endpoints reject everything while unset |
 
 Webhook tuning (`eventcore.webhooks` in
-[application.yml](src/main/resources/application.yml)): `poll-interval` 1s,
+[application.yml](backend/src/main/resources/application.yml)): `poll-interval` 1s,
 `retry-backoff` 5s doubling per attempt, `max-attempts` 5.
 
 ## Free self-hosting, flat-price hosting
@@ -150,13 +160,14 @@ Webhook tuning (`eventcore.webhooks` in
 ## Development
 
 ```bash
-./mvnw test            # 72 integration tests via Testcontainers (Docker required)
+cd backend
+./mvnw test            # 86 integration tests via Testcontainers (Docker required)
 ./mvnw clean package   # build the jar
 ```
 
 Java 21 · Spring Boot 4 · TimescaleDB (PostgreSQL 16) · Flyway · Docker
 Compose. Package-by-feature layout under
-[src/main/java/dev/eventcore](src/main/java/dev/eventcore): `events`,
+[backend/src/main/java/dev/eventcore](backend/src/main/java/dev/eventcore): `events`,
 `webhooks`, `deliveries`, `security`, `metrics`, with shared `api` and
 `crypto` primitives. Contributions welcome — start with the
 [testing guide](docs/testing/README.md).
