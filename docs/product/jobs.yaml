@@ -87,3 +87,16 @@ changelog:
       SSOT bootstrap. Created JOB-001 (dual-facet record-and-propagate job, strategic level)
       with outcomes O1-O8 and desk-research proxy opportunity scores. Recommendation for
       DISCUSS: Pipeline Control Tower (see docs/feature/eventcore/recommendation.md).
+  - date: 2026-07-05
+    feature: eventcore
+    wave: DISCUSS
+    agent: nw-product-owner (Luna)
+    change: >-
+      JTBD-to-story bridge (no job changes; proxy scores untouched). 8 user stories mapped
+      N:1 onto JOB-001 across the propagation facet: O3 -> US-01/02/03 (+US-04 secondary),
+      O5 -> US-05/06, O6 -> US-07/08; O1 and O2 served secondarily. Out of scope with
+      rationale: O8 replay/backfill (DIVERGE dissent territory), O1 full search, O4, O7,
+      built-in flow-monitor resources (thin-sliced to metrics + alert rule). Persona
+      platform-operator and journey operator-recovers-failed-delivery added to SSOT.
+      Full requirements: docs/feature/eventcore/feature-delta.md; slices:
+      docs/feature/eventcore/slices/.

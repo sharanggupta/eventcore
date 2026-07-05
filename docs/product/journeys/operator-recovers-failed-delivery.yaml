@@ -1,0 +1,130 @@
+schema_version: 1
+
+# Journey SSOT — created by DISCUSS wave (feature: eventcore, Pipeline Control Tower)
+# Full narrative, emotional arc, and error-path map: docs/feature/eventcore/feature-delta.md
+# ("[HOW] Journey Deep-Dive" section).
+
+id: operator-recovers-failed-delivery
+name: Operator recovers a failed webhook delivery
+persona: platform-operator
+job_id: JOB-001
+outcomes: [O3, O2, O1]
+source_feature: eventcore
+
+trigger: >-
+  The operator is paged (03:12-style incident): a downstream team reports missing data.
+  After Release 2 (slices 05-06), the trigger shifts left to a metrics alert firing before
+  any human notices.
+
+emotional_arc: startled/anxious -> oriented -> informed -> in-control -> calm
+
+steps:
+  - id: alerted
+    action: Page arrives with a vague symptom ("invoices missing")
+    surface: pager / alerting stack
+    expected_output: An incident with an unknown blast radius
+    emotion: startled, anxious
+    gherkin: |
+      Given billing-sync crashed at 02:41 and 137 deliveries to it dead-lettered
+      When Priya is paged at 03:12 with "invoices missing"
+      Then she starts triage with no database shell open
+
+  - id: locate
+    action: List failed deliveries and scope the blast radius
+    surface: GET /v1/deliveries?status=failed&subscription_id={id}
+    expected_output: The exact set of dead-lettered deliveries (count, consumer, time window)
+    emotion: oriented
+    story: US-01
+    gherkin: |
+      When Priya requests GET /v1/deliveries?status=failed&subscription_id={billing-sync-id}
+      Then she sees all 137 failed deliveries, all created after 02:40, all for billing-sync
+
+  - id: diagnose
+    action: Inspect one delivery's per-attempt history
+    surface: GET /v1/deliveries/{id}
+    expected_output: Attempt-by-attempt status codes / errors / response snippets naming the cause
+    emotion: informed
+    story: US-02
+    gherkin: |
+      When Priya requests GET /v1/deliveries/7c9e6679-7425-40de-944b-e07fc1f90ae7
+      Then attempts 1-2 show status_code 503 and attempts 3-5 show error "connection refused"
+      And the cause (consumer crashed after its 02:41 deploy) is named in one call
+
+  - id: fix-downstream
+    action: Downstream team rolls back / redeploys the broken consumer
+    surface: external (outside EventCore)
+    expected_output: Consumer healthy again
+    emotion: focused
+    gherkin: |
+      When the billing team redeploys billing-sync at 03:30
+      Then the consumer accepts requests again
+
+  - id: recover
+    action: Canary-redeliver one delivery, then bulk-requeue the rest
+    surface: POST /v1/deliveries/{id}/redeliver ; POST /v1/deliveries/redeliver
+    expected_output: Canary turns delivered; bulk response reports {"requeued":136}
+    emotion: in control
+    story: US-03, US-04
+    gherkin: |
+      When Priya redelivers one canary delivery and sees it become delivered
+      And she posts {"status":"failed","subscription_id":"9f3b6c2a-..."} to /v1/deliveries/redeliver
+      Then the response reports 136 requeued
+
+  - id: verify
+    action: Confirm the failed list drains and the failed gauge returns to zero
+    surface: GET /v1/deliveries?status=failed ; GET /metrics
+    expected_output: Empty failed list; eventcore_deliveries{status="failed"} 0
+    emotion: calm (job's emotional dimension achieved)
+    story: US-01, US-05
+    gherkin: |
+      When Priya re-lists failed deliveries for billing-sync
+      Then the list is empty and the failed gauge reads 0
+      And at no point did anyone open a database shell
+
+shared_artifacts:
+  - name: api_key
+    source: POST /v1/api-keys (admin-issued)
+    consumed_by: [locate, diagnose, recover, verify]
+  - name: subscription_id
+    source: GET /v1/webhooks
+    consumed_by: [locate, recover]
+  - name: delivery_id
+    source: locate step response (deliveries[].id)
+    consumed_by: [diagnose, recover]
+  - name: event_id
+    source: diagnose step response
+    consumed_by: [verify]
+  - name: failed_count
+    source: locate step response
+    consumed_by: [recover, verify]
+
+error_paths:
+  - step: locate
+    failure: invalid status filter
+    recovery: 400 typed error names the valid values
+  - step: diagnose
+    failure: delivery predates attempt capture
+    recovery: legacy attempts count + empty delivery_attempts array (documented)
+  - step: recover
+    failure: redeliver a non-failed delivery
+    recovery: 409 typed error protects healthy consumers
+  - step: recover
+    failure: consumer still broken after redelivery
+    recovery: fresh retry cycle dead-letters again with attempts 6-10 as evidence
+  - step: recover
+    failure: bulk filter matches nothing / re-run
+    recovery: 202 {"requeued":0}, idempotent
+  - step: verify
+    failure: failed count not draining
+    recovery: pending gauge + oldest_pending_delivery_age_seconds expose a stalled dispatcher
+
+related_journeys_deferred:
+  - operator-detects-stopped-flow (thin-sliced into US-05/US-06 metrics; no separate journey file)
+  - operator-scopes-a-subscription (US-07/US-08; steady-state configuration, not incident flow)
+
+changelog:
+  - date: 2026-07-05
+    feature: eventcore
+    wave: DISCUSS
+    agent: nw-product-owner (Luna)
+    change: Journey created (SSOT bootstrap for journeys/).

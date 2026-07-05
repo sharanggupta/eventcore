@@ -1,0 +1,59 @@
+schema_version: 1
+
+# Persona SSOT — created by DISCUSS wave (feature: eventcore, Pipeline Control Tower)
+# Extended narrative: docs/feature/eventcore/feature-delta.md ("[WHY] Persona Narrative").
+
+id: platform-operator
+name: First-party platform operator
+exemplar: Priya Raghavan (platform engineer, Nimbus Retail)
+source_feature: eventcore
+grounding: >-
+  DIVERGE recommendation assumption (a): the primary near-term adopter is a first-party team
+  operating its own EventCore instance, not a SaaS vendor reselling webhooks. Affirmed as
+  DISCUSS decision D1. Desk-derived; no customer interviews yet (DISCOVER risk carried).
+
+role: Platform/backend engineer operating the team's own EventCore instance
+context:
+  - Runs EventCore via Docker Compose for a first-party event pipeline
+  - Responsible for downstream integrations staying consistent with the event record
+  - On-call rotation; incidents arrive as pages, often at night
+  - Operates an existing Prometheus/Grafana (or compatible) monitoring stack
+
+characteristics:
+  - Terminal-native; curl and jq fluent; automates anything done twice
+  - Reads API responses over dashboards; trusts what she can cross-check once
+  - Comfortable with psql but treats production database shells as a failure of tooling
+
+goals:
+  - Integrations stay consistent without babysitting
+  - Incidents end with evidence (counts, causes, timestamps), not shrugs
+  - Zero database shell sessions during delivery incidents
+
+frustrations:
+  - EventCore is a black box after deployment; failures after retry exhaustion are silent
+  - Cause-of-failure data is discarded at attempt time
+  - Every consumer receives every event; noise and boundary leaks
+  - Producer silence has no error path — absence is invisible
+
+vocabulary:
+  - dead letter
+  - requeue / redeliver
+  - backlog
+  - canary
+  - blast radius
+  - scrape / silence window
+
+jobs:
+  - job_id: JOB-001
+    facet: propagation
+    outcomes_cared_about: [O3, O5, O6, O2, O1]
+
+journeys:
+  - operator-recovers-failed-delivery
+
+changelog:
+  - date: 2026-07-05
+    feature: eventcore
+    wave: DISCUSS
+    agent: nw-product-owner (Luna)
+    change: Persona created (SSOT bootstrap for personas/).
