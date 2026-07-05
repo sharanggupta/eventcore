@@ -2,6 +2,9 @@ package dev.eventcore.webhooks;
 
 import dev.eventcore.api.NotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Webhooks", description = "Manage webhook subscriptions; deliveries are HMAC-SHA256 signed")
 @RestController
 @RequestMapping("/v1/webhooks")
 class WebhooksController {
@@ -26,15 +30,15 @@ class WebhooksController {
         this.webhooks = webhooks;
     }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
+@Operation(summary = "Register a webhook; the signing secret is returned exactly once")
+    @PostMapping    @ResponseStatus(HttpStatus.CREATED)
     RegisteredWebhook register(@RequestBody CreateWebhookRequest request) {
         request.validate();
         return webhooks.register(request.url(), request.subscribedTypes());
     }
 
-    @PatchMapping("/{id}")
-    WebhookSubscription updateFilter(@PathVariable UUID id,
+@Operation(summary = "Change the eventTypes filter in place; id and secret are kept")
+    @PatchMapping("/{id}")    WebhookSubscription updateFilter(@PathVariable UUID id,
                                      @RequestBody UpdateWebhookFilterRequest request) {
         if (!webhooks.updateFilter(id, request.subscribedTypes())) {
             throw new NotFoundException("webhook subscription not found");
@@ -42,13 +46,13 @@ class WebhooksController {
         return webhooks.one(id);
     }
 
-    @GetMapping
-    List<WebhookSubscription> list() {
+@Operation(summary = "List subscriptions (never includes secrets)")
+    @GetMapping    List<WebhookSubscription> list() {
         return webhooks.all();
     }
 
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
+@Operation(summary = "Remove a subscription and its delivery history")
+    @DeleteMapping("/{id}")    @ResponseStatus(HttpStatus.NO_CONTENT)
     void unsubscribe(@PathVariable UUID id) {
         if (!webhooks.remove(id)) {
             throw new NotFoundException("webhook subscription not found");

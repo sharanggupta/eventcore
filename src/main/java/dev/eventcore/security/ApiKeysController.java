@@ -3,6 +3,9 @@ package dev.eventcore.security;
 import dev.eventcore.api.NotFoundException;
 import dev.eventcore.api.UnauthorizedException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+@Tag(name = "API keys", description = "Admin-token-guarded key management; only SHA-256 hashes are stored")
 @RestController
 @RequestMapping("/v1/api-keys")
 class ApiKeysController {
@@ -27,8 +31,8 @@ class ApiKeysController {
         this.security = security;
     }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
+@Operation(summary = "Issue a key; the plaintext appears only in this response")
+    @PostMapping    @ResponseStatus(HttpStatus.CREATED)
     IssuedApiKey issue(@RequestHeader(value = "X-Admin-Token", required = false) String adminToken,
                        @RequestBody CreateApiKeyRequest request) {
         requireAdmin(adminToken);
@@ -36,8 +40,8 @@ class ApiKeysController {
         return apiKeys.issue(request.name());
     }
 
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
+@Operation(summary = "Revoke a key immediately; the record is kept for audit")
+    @DeleteMapping("/{id}")    @ResponseStatus(HttpStatus.NO_CONTENT)
     void revoke(@RequestHeader(value = "X-Admin-Token", required = false) String adminToken,
                 @PathVariable UUID id) {
         requireAdmin(adminToken);

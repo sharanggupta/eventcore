@@ -37,6 +37,14 @@ class SmokeTest extends IntegrationTestBase {
     }
 
     @Test
+    void apiDocsAreServedWithoutAKey() {
+        String apiDocs = anonymousApi().get().uri("/v3/api-docs").retrieve().body(String.class);
+
+        assertThat(apiDocs).contains("\"title\":\"EventCore API\"");
+        assertThat(apiDocs).contains("/v1/events");
+    }
+
+    @Test
     void healthIsTheOnlyHealthEndpoint() {
         var response = api().get().uri("/actuator/health")
                 .retrieve()

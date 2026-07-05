@@ -2,6 +2,9 @@ package dev.eventcore.deliveries;
 
 import dev.eventcore.api.NotFoundException;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+@Tag(name = "Deliveries", description = "Inspect and recover webhook deliveries (the outbox)")
 @RestController
 @RequestMapping("/v1/deliveries")
 class DeliveriesController {
@@ -24,27 +28,27 @@ class DeliveriesController {
         this.deliveries = deliveries;
     }
 
-    @GetMapping
-    DeliveryPage list(@RequestParam(defaultValue = "50") int limit,
+@Operation(summary = "List deliveries newest-first; filter by status pending/delivered/failed")
+    @GetMapping    DeliveryPage list(@RequestParam(defaultValue = "50") int limit,
                       @RequestParam(required = false) String cursor,
                       @RequestParam(required = false) String status) {
         return deliveries.page(DeliveryQuery.of(limit, cursor, status));
     }
 
-    @GetMapping("/{id}")
-    DeliveryDetail detail(@PathVariable UUID id) {
+@Operation(summary = "Delivery detail with the per-attempt history: status codes, errors, snippets, durations")
+    @GetMapping("/{id}")    DeliveryDetail detail(@PathVariable UUID id) {
         return deliveries.find(id)
                 .orElseThrow(() -> new NotFoundException("delivery not found"));
     }
 
-    @PostMapping("/{id}/redeliver")
-    @ResponseStatus(HttpStatus.ACCEPTED)
+@Operation(summary = "Requeue one failed delivery for a fresh retry cycle; non-failed answers 409")
+    @PostMapping("/{id}/redeliver")    @ResponseStatus(HttpStatus.ACCEPTED)
     RedeliveryReceipt redeliver(@PathVariable UUID id) {
         return deliveries.requeue(id);
     }
 
-    @PostMapping("/redeliver")
-    @ResponseStatus(HttpStatus.ACCEPTED)
+@Operation(summary = "Bulk requeue failed deliveries, optionally scoped to one subscription")
+    @PostMapping("/redeliver")    @ResponseStatus(HttpStatus.ACCEPTED)
     RedeliveredBatch redeliverAll(@RequestBody BulkRedeliveryRequest request) {
         request.validate();
         return deliveries.requeueAllFailed(request);

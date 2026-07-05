@@ -1,8 +1,12 @@
 package dev.eventcore.metrics;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Monitoring", description = "Prometheus-text pipeline health; no authentication")
 @RestController
 class MetricsController {
 
@@ -12,8 +16,8 @@ class MetricsController {
         this.pipeline = pipeline;
     }
 
-    @GetMapping(value = "/metrics", produces = "text/plain; version=0.0.4; charset=utf-8")
-    String metrics() {
+@Operation(summary = "Scrape pipeline metrics: delivery states, backlog age, ingest totals, per-type last-received")
+    @GetMapping(value = "/metrics", produces = "text/plain; version=0.0.4; charset=utf-8")    String metrics() {
         StringBuilder exposition = new StringBuilder();
 
         typeHeader(exposition, "eventcore_deliveries", "Webhook deliveries by status");

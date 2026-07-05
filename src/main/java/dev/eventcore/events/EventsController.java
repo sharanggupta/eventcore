@@ -1,5 +1,8 @@
 package dev.eventcore.events;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -9,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Events", description = "Ingest events and query the log")
 @RestController
 @RequestMapping("/v1/events")
 class EventsController {
@@ -21,15 +25,15 @@ class EventsController {
         this.events = events;
     }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
+@Operation(summary = "Ingest an event; type is required, payload is arbitrary JSON")
+    @PostMapping    @ResponseStatus(HttpStatus.CREATED)
     EventCreated create(@RequestBody CreateEventRequest request) {
         request.validate();
         return ingestion.ingest(request.type(), request.payload());
     }
 
-    @GetMapping
-    EventPage list(@RequestParam(defaultValue = "50") int limit,
+@Operation(summary = "List events newest-first with cursor pagination and optional type filter")
+    @GetMapping    EventPage list(@RequestParam(defaultValue = "50") int limit,
                    @RequestParam(required = false) String cursor,
                    @RequestParam(required = false) String type) {
         return events.page(EventQuery.of(limit, cursor, type));
