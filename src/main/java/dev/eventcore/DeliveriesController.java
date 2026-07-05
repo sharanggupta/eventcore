@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -38,5 +39,12 @@ class DeliveriesController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     RedeliveryReceipt redeliver(@PathVariable UUID id) {
         return deliveries.requeue(id);
+    }
+
+    @PostMapping("/redeliver")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    RedeliveredBatch redeliverAll(@RequestBody BulkRedeliveryRequest request) {
+        request.validate();
+        return deliveries.requeueAllFailed(request);
     }
 }

@@ -87,6 +87,22 @@ class DeliveryOutbox {
         return receiptFor(id);
     }
 
+    RedeliveredBatch requeueAllFailed(BulkRedeliveryRequest request) {
+        StringBuilder sql = new StringBuilder("""
+                UPDATE webhook_deliveries
+                SET status = 'pending', next_attempt_at = NOW(),
+                    gives_up_after = attempts + :maxAttempts
+                WHERE status = 'failed'""");
+        if (request.scopedToOneSubscription()) {
+            sql.append(" AND subscription_id = :subscriptionId");
+        }
+        var statement = jdbc.sql(sql.toString()).param("maxAttempts", webhooks.maxAttempts());
+        if (request.scopedToOneSubscription()) {
+            statement = statement.param("subscriptionId", request.subscriptionId());
+        }
+        return new RedeliveredBatch(statement.update());
+    }
+
     void recordSuccess(PendingDelivery delivery, AttemptOutcome outcome) {
         jdbc.sql("UPDATE webhook_deliveries SET status = 'delivered', attempts = attempts + 1 WHERE id = :id")
                 .param("id", delivery.id())

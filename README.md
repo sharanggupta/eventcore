@@ -278,6 +278,9 @@ Stop the stack with `docker compose down` (add `-v` to also wipe the data).
 | POST | `/v1/events` | `X-API-Key` | Ingest an event (`type` required, `payload` optional JSON) |
 | GET | `/v1/events` | `X-API-Key` | List newest-first; `limit`, `cursor`, `type` params |
 | GET | `/v1/deliveries` | `X-API-Key` | List webhook deliveries newest-first; `status` (pending/delivered/failed), `limit`, `cursor` params |
+| GET | `/v1/deliveries/{id}` | `X-API-Key` | Delivery detail with per-attempt history (status code/error, response snippet, duration) |
+| POST | `/v1/deliveries/{id}/redeliver` | `X-API-Key` | Requeue a failed delivery for a fresh retry cycle (202); non-failed → 409 |
+| POST | `/v1/deliveries/redeliver` | `X-API-Key` | Bulk requeue: `{"status":"failed","subscriptionId":optional}` → `{"requeued":N}` |
 | POST | `/v1/webhooks` | `X-API-Key` | Register a webhook (signing `secret` shown once) |
 | GET | `/v1/webhooks` | `X-API-Key` | List subscriptions (without secrets) |
 | DELETE | `/v1/webhooks/{id}` | `X-API-Key` | Remove a subscription and its delivery history |

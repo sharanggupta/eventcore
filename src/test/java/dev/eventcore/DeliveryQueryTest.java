@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
@@ -126,6 +127,55 @@ class DeliveryQueryTest extends IntegrationTestBase {
     }
 
     @Test
+    void bulkRedeliveryRequeuesEveryFailedDeliveryAndReportsTheCount() {
+        OffsetDateTime now = OffsetDateTime.now();
+        insertDelivery("failed", 5, now.minusSeconds(2));
+        insertDelivery("failed", 5, now.minusSeconds(1));
+        insertDelivery("delivered", 1, now);
+
+        RedeliveredBatch batch = bulkRedeliver("{\"status\": \"failed\"}");
+
+        assertThat(batch.requeued()).isEqualTo(2);
+        assertThat(listDeliveries("?status=failed").items()).isEmpty();
+        assertThat(listDeliveries("?status=delivered").items()).hasSize(1);
+    }
+
+    @Test
+    void bulkRedeliveryCanBeScopedToOneSubscription() {
+        UUID otherSubscription = insertSubscription();
+        insertDelivery("failed", 5, OffsetDateTime.now().minusSeconds(1));
+        insertDeliveryFor(otherSubscription, "failed", 5, OffsetDateTime.now());
+
+        RedeliveredBatch batch = bulkRedeliver(
+                "{\"status\": \"failed\", \"subscriptionId\": \"" + otherSubscription + "\"}");
+
+        assertThat(batch.requeued()).isEqualTo(1);
+        assertThat(listDeliveries("?status=failed").items())
+                .extracting(Delivery::subscriptionId)
+                .containsExactly(subscriptionId);
+    }
+
+    @Test
+    void bulkRedeliveryWithNothingMatchingReportsZero() {
+        RedeliveredBatch batch = bulkRedeliver("{\"status\": \"failed\"}");
+
+        assertThat(batch.requeued()).isZero();
+    }
+
+    @Test
+    void bulkRedeliveryWithoutTheExplicitFailedStatusIsRejected() {
+        ResponseEntity<ApiError> response = api().post().uri("/v1/deliveries/redeliver")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{}")
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, res) -> { })
+                .toEntity(ApiError.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().error()).isEqualTo("status is required and must be \"failed\"");
+    }
+
+    @Test
     void anUnknownStatusIsRejected() {
         ResponseEntity<ApiError> response = api().get().uri("/v1/deliveries?status=exploded")
                 .retrieve()
@@ -139,6 +189,14 @@ class DeliveryQueryTest extends IntegrationTestBase {
 
     private DeliveryPage listDeliveries(String query) {
         return api().get().uri("/v1/deliveries" + query).retrieve().body(DeliveryPage.class);
+    }
+
+    private RedeliveredBatch bulkRedeliver(String body) {
+        return api().post().uri("/v1/deliveries/redeliver")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(RedeliveredBatch.class);
     }
 
     private UUID onlyDeliveryId() {
@@ -156,12 +214,16 @@ class DeliveryQueryTest extends IntegrationTestBase {
     }
 
     private void insertDelivery(String status, int attempts, OffsetDateTime createdAt) {
+        insertDeliveryFor(subscriptionId, status, attempts, createdAt);
+    }
+
+    private void insertDeliveryFor(UUID subscription, String status, int attempts, OffsetDateTime createdAt) {
         jdbc.sql("""
                 INSERT INTO webhook_deliveries (event_id, subscription_id, body, status, attempts, created_at)
                 VALUES (:eventId, :subscriptionId, CAST(:body AS jsonb), :status, :attempts, :createdAt)
                 """)
                 .param("eventId", UUID.randomUUID())
-                .param("subscriptionId", subscriptionId)
+                .param("subscriptionId", subscription)
                 .param("body", "{\"type\": \"outbox.test\"}")
                 .param("status", status)
                 .param("attempts", attempts)
