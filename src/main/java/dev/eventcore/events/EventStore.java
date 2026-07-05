@@ -1,5 +1,7 @@
 package dev.eventcore.events;
 
+import dev.eventcore.api.Cursor;
+
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.JsonNode;
@@ -13,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-class EventStore {
+public class EventStore {
 
     private static final String SELECT_EVENTS =
             "SELECT id, time, type, payload::text AS payload FROM events";
@@ -39,6 +41,26 @@ class EventStore {
                 .param("payload", asJson(payload), Types.VARCHAR)
                 .update();
         return event;
+    }
+
+    /** Oldest-first read for pull consumers; a null position means the beginning of the log. */
+    public List<Event> ascendingAfter(Cursor position, List<String> types, int limit) {
+        StringBuilder sql = new StringBuilder(SELECT_EVENTS + " WHERE TRUE");
+        if (position != null) {
+            sql.append(" AND (time, id) > (:time, :id)");
+        }
+        if (types != null) {
+            sql.append(" AND type IN (:types)");
+        }
+        sql.append(" ORDER BY time ASC, id ASC LIMIT :limit");
+        var statement = jdbc.sql(sql.toString()).param("limit", limit);
+        if (position != null) {
+            statement = statement.param("time", position.time()).param("id", position.id());
+        }
+        if (types != null) {
+            statement = statement.param("types", types);
+        }
+        return statement.query(this::toEvent).list();
     }
 
     EventPage page(EventQuery query) {

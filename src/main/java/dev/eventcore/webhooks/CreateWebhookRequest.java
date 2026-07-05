@@ -1,6 +1,7 @@
 package dev.eventcore.webhooks;
 
 import dev.eventcore.api.InvalidRequestException;
+import dev.eventcore.events.EventTypes;
 
 import java.net.URI;
 import java.net.URISyntaxException;

@@ -53,6 +53,7 @@ public abstract class IntegrationTestBase {
 
     /** Deletes in foreign-key-safe order; keeps api_keys so the shared test key stays valid. */
     protected void wipeAllData() {
+        jdbc.sql("DELETE FROM pull_subscriptions").update();
         jdbc.sql("DELETE FROM webhook_deliveries").update();
         jdbc.sql("DELETE FROM webhook_subscriptions").update();
         jdbc.sql("DELETE FROM events").update();

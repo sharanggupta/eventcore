@@ -25,6 +25,12 @@ HMAC-SHA256 signed with a per-subscription secret, retried five times with
 exponential backoff from a transactional outbox that survives restarts.
 Per-subscription `eventTypes` filters, updatable in place.
 
+**Replay** — pull subscriptions give any consumer a named durable cursor over
+the permanent log: start from the beginning, now, or any timestamp; fetch and
+commit at your own pace; a consumer built today can backfill everything that
+happened before it existed. Webhook gateways that expire payloads in 3–90
+days structurally cannot offer this.
+
 **Operate** — the delivery pipeline is fully inspectable and recoverable over
 the API: list the outbox, read per-attempt histories (status codes, errors,
 response snippets, durations), redeliver one failed delivery or a whole
@@ -91,6 +97,9 @@ captured output) or let the script prove everything at once:
 | GET | `/v1/deliveries/{id}` | `X-API-Key` | Per-attempt history: status/error, snippet, duration |
 | POST | `/v1/deliveries/{id}/redeliver` | `X-API-Key` | Fresh retry cycle for a failed delivery |
 | POST | `/v1/deliveries/redeliver` | `X-API-Key` | Bulk requeue: `{"status":"failed"}` → `{"requeued":N}` |
+| POST | `/v1/pull-subscriptions` | `X-API-Key` | Create a named durable cursor (`from`: `beginning`/`now`/timestamp; optional `eventTypes`) |
+| GET | `/v1/pull-subscriptions/{name}/events` | `X-API-Key` | Fetch the next batch oldest-first (peek; does not advance) |
+| POST | `/v1/pull-subscriptions/{name}/commit` | `X-API-Key` | Advance the cursor — crash-safe, at-least-once consumption |
 
 Errors are always `{"error": "<what went wrong>"}` with 400/401/404/409.
 
