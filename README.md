@@ -37,12 +37,16 @@ response snippets, durations), redeliver one failed delivery or a whole
 backlog with one call, and scrape `/metrics` (Prometheus) including a
 per-type last-received timestamp that catches producers going silent.
 
+**See** — a tenant dashboard ([dashboard/](dashboard)) with pipeline charts, a
+browsable event log (filter, paginate, click for payloads), delivery attempt
+timelines with one-click redelivery, and per-consumer lag.
+
 **Secure** — API keys hashed at rest, shown once, revocable instantly;
 admin-token-guarded key management; deliveries verifiable by receivers.
 
 ## Quick start
 
-Prerequisites: Docker with Compose.
+Prerequisites: Docker with Compose, plus `curl` and `jq` for the examples below.
 
 ```bash
 git clone git@github.com:sharanggupta/eventcore.git && cd eventcore
@@ -75,7 +79,7 @@ captured output) or let the script prove everything at once:
 | Directory | What it is |
 |---|---|
 | [`backend/`](backend) | The EventCore service: Spring Boot 4 + TimescaleDB |
-| [`dashboard/`](dashboard) | Tenant web dashboard (Next.js — planned, [M11](https://github.com/sharanggupta/eventcore/milestone/12)) |
+| [`dashboard/`](dashboard) | Tenant web dashboard (Next.js) — see the [guide](docs/dashboard.md) |
 | [`examples/`](examples) | Runnable integration examples (Spring Boot, Python) |
 | [`docs/`](docs) | Walkthrough, testing and developer guides, product research |
 | [`scripts/`](scripts) | End-to-end walkthrough script, local webhook listener |
@@ -88,6 +92,7 @@ captured output) or let the script prove everything at once:
 | [Testing guide](docs/testing/README.md) | Reproducible test suite, e2e script, failure/recovery drill |
 | [Developer guide](docs/development.md) | Codebase tour, request lifecycle, how to add a feature |
 | [Integration examples](examples/README.md) | Runnable Spring Boot and Python apps that use EventCore end-to-end |
+| [Dashboard guide](docs/dashboard.md) | The tenant web UI: run it, every screen explained |
 | **Swagger UI** | `http://localhost:8080/swagger-ui.html` on any running instance (spec at `/v3/api-docs`) |
 | [Market positioning](docs/product/market-positioning.md) | Cited competitor pricing and where EventCore stands |
 
@@ -138,6 +143,8 @@ Set in [.env](.env) (used by Docker Compose) or as environment variables:
 | DB_PORT | 5432 | Database port |
 | SERVER_PORT | 8080 | Application port |
 | ADMIN_TOKEN | (unset) | Token for key management; those endpoints reject everything while unset |
+| RETENTION_EVENTS_MAX_AGE | 0 (keep forever) | e.g. `90d` — old events drop by whole chunks, daily |
+| RETENTION_DELIVERY_HISTORY_MAX_AGE | 0 (keep forever) | e.g. `30d` — old delivery records and attempts |
 
 Webhook tuning (`eventcore.webhooks` in
 [application.yml](backend/src/main/resources/application.yml)): `poll-interval` 1s,

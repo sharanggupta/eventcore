@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+body {
+  @apply min-h-screen text-slate-200 antialiased;
+  background:
+    radial-gradient(60rem 40rem at 85% -10%, rgba(99, 102, 241, 0.18), transparent),
+    radial-gradient(50rem 35rem at -10% 110%, rgba(34, 211, 238, 0.12), transparent),
+    #020617;
+}
+
+.glass {
+  @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md;
+  box-shadow: 0 8px 32px rgba(2, 6, 23, 0.45);
+}
+
+.accent {
+  @apply bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-300 bg-clip-text text-transparent;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}

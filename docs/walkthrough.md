@@ -3,6 +3,7 @@
 Every command below was executed against a fresh `docker compose up --build -d`
 stack and every shown response is real captured output (ids will differ).
 Prefer automation? `./scripts/walkthrough.sh` runs all of this with assertions.
+Prerequisites: a running stack, `curl`, and `jq`.
 
 
 ### 1. Issue an API key

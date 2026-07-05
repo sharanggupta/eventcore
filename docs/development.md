@@ -90,6 +90,13 @@ More detail in the [testing guide](testing/README.md).
   with `next_attempt_at` in the future or the live poller will claim them
   mid-test.
 
+## The dashboard
+
+The web UI lives in [`dashboard/`](../dashboard) (Next.js 15, server-rendered,
+zero client-side secrets). It is a pure consumer of the public API - adding a
+backend feature needs no dashboard change unless you want a screen for it.
+See the [dashboard guide](dashboard.md).
+
 ## Product context
 
 Why features exist is documented, not folklore: jobs and outcomes in
