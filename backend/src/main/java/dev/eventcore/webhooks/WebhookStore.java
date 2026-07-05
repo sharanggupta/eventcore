@@ -22,15 +22,16 @@ class WebhookStore {
         this.json = json;
     }
 
-    RegisteredWebhook register(String url, List<String> eventTypes) {
-        RegisteredWebhook webhook = RegisteredWebhook.now(url, eventTypes);
-        jdbc.sql("INSERT INTO webhook_subscriptions (id, created_at, url, secret, event_types) "
-                        + "VALUES (:id, :createdAt, :url, :secret, CAST(:eventTypes AS jsonb))")
+    RegisteredWebhook register(String url, List<String> eventTypes, List<String> payloadFields) {
+        RegisteredWebhook webhook = RegisteredWebhook.now(url, eventTypes, payloadFields);
+        jdbc.sql("INSERT INTO webhook_subscriptions (id, created_at, url, secret, event_types, payload_fields) "
+                        + "VALUES (:id, :createdAt, :url, :secret, CAST(:eventTypes AS jsonb), CAST(:payloadFields AS jsonb))")
                 .param("id", webhook.id())
                 .param("createdAt", webhook.createdAt())
                 .param("url", webhook.url())
                 .param("secret", webhook.secret())
                 .param("eventTypes", asJson(webhook.eventTypes()), Types.VARCHAR)
+                .param("payloadFields", asJson(webhook.payloadFields()), Types.VARCHAR)
                 .update();
         return webhook;
     }
@@ -52,14 +53,16 @@ class WebhookStore {
     }
 
     List<WebhookSubscription> all() {
-        return jdbc.sql("SELECT id, created_at, url, event_types::text AS event_types "
+        return jdbc.sql("SELECT id, created_at, url, event_types::text AS event_types, "
+                        + "payload_fields::text AS payload_fields "
                         + "FROM webhook_subscriptions ORDER BY created_at")
                 .query(this::toSubscription)
                 .list();
     }
 
     WebhookSubscription one(UUID id) {
-        return jdbc.sql("SELECT id, created_at, url, event_types::text AS event_types "
+        return jdbc.sql("SELECT id, created_at, url, event_types::text AS event_types, "
+                        + "payload_fields::text AS payload_fields "
                         + "FROM webhook_subscriptions WHERE id = :id")
                 .param("id", id)
                 .query(this::toSubscription)
@@ -71,7 +74,8 @@ class WebhookStore {
                 row.getObject("id", UUID.class),
                 row.getObject("created_at", OffsetDateTime.class),
                 row.getString("url"),
-                asEventTypes(row.getString("event_types")));
+                asEventTypes(row.getString("event_types")),
+                asEventTypes(row.getString("payload_fields")));
     }
 
     private String asJson(List<String> eventTypes) {

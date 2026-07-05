@@ -45,6 +45,59 @@ class WebhookSubscriptionsTest extends IntegrationTestBase {
     }
 
     @Test
+    void aSubscriptionCanLimitTheDeliveredPayloadToChosenFields() {
+        RegisteredWebhook minimal = registerWebhook("""
+                {"url": "https://example.com/hooks/minimal", "payloadFields": ["orderId"]}
+                """).body(RegisteredWebhook.class);
+        assertThat(minimal.payloadFields()).containsExactly("orderId");
+        assertThat(listWebhooks()).singleElement()
+                .satisfies(listed -> assertThat(listed.payloadFields()).containsExactly("orderId"));
+
+        postEventWithCardNumber("order.placed");
+
+        String deliveredBody = deliveredBodyFor(minimal.id());
+        assertThat(deliveredBody).contains("ord_7");
+        assertThat(deliveredBody).doesNotContain("cardNumber");
+        assertThat(deliveredBody).contains("order.placed");
+    }
+
+    @Test
+    void aSubscriptionWithoutPayloadFieldsReceivesTheFullPayload() {
+        RegisteredWebhook full = registerWebhook("""
+                {"url": "https://example.com/hooks/full"}
+                """).body(RegisteredWebhook.class);
+
+        postEventWithCardNumber("order.paid");
+
+        assertThat(deliveredBodyFor(full.id())).contains("cardNumber");
+    }
+
+    @Test
+    void aBlankPayloadFieldIsRejected() {
+        ResponseEntity<ApiError> response = registerWebhookExpectingRejection("""
+                {"url": "https://example.com/hooks/x", "payloadFields": [" "]}
+                """);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().error()).isEqualTo("payload fields must not be blank");
+    }
+
+    private void postEventWithCardNumber(String type) {
+        api().post().uri("/v1/events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"type\": \"" + type + "\", \"payload\": {\"orderId\": \"ord_7\", \"cardNumber\": \"4242-4242\"}}")
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    private String deliveredBodyFor(UUID subscription) {
+        return jdbc.sql("SELECT body::text FROM webhook_deliveries WHERE subscription_id = :id")
+                .param("id", subscription)
+                .query(String.class)
+                .single();
+    }
+
+    @Test
     void registeringAWebhookRevealsItsSigningSecretExactlyOnce() {
         RegisteredWebhook webhook = registerWebhook("""
                 {"url": "https://example.com/hooks/signed"}

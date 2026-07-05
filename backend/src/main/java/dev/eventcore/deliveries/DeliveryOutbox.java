@@ -7,6 +7,7 @@ import dev.eventcore.events.Event;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -33,17 +34,53 @@ public class DeliveryOutbox {
     }
 
     public void enqueue(Event event) {
-        jdbc.sql("""
-                INSERT INTO webhook_deliveries (event_id, subscription_id, body, gives_up_after)
-                SELECT :eventId, id, CAST(:body AS jsonb), :givesUpAfter
-                FROM webhook_subscriptions
+        for (SubscriptionTarget target : targetsFor(event.type())) {
+            insertDeliveryFor(event, target);
+        }
+    }
+
+    private record SubscriptionTarget(UUID id, List<String> payloadFields) {}
+
+    private List<SubscriptionTarget> targetsFor(String eventType) {
+        return jdbc.sql("""
+                SELECT id, payload_fields::text AS payload_fields FROM webhook_subscriptions
                 WHERE event_types IS NULL OR jsonb_exists(event_types, :type)
                 """)
+                .param("type", eventType)
+                .query((row, rowNumber) -> new SubscriptionTarget(
+                        row.getObject("id", UUID.class),
+                        toFieldList(row.getString("payload_fields"))))
+                .list();
+    }
+
+    private void insertDeliveryFor(Event event, SubscriptionTarget target) {
+        jdbc.sql("""
+                INSERT INTO webhook_deliveries (event_id, subscription_id, body, gives_up_after)
+                VALUES (:eventId, :subscriptionId, CAST(:body AS jsonb), :givesUpAfter)
+                """)
                 .param("eventId", event.id())
-                .param("type", event.type())
-                .param("body", json.writeValueAsString(event))
+                .param("subscriptionId", target.id())
+                .param("body", json.writeValueAsString(deliverableViewOf(event, target.payloadFields())))
                 .param("givesUpAfter", properties.maxAttempts())
                 .update();
+    }
+
+    /** Payload minimization: keep only the subscription's allow-listed top-level fields. */
+    private Event deliverableViewOf(Event event, List<String> payloadFields) {
+        if (payloadFields == null || !(event.payload() instanceof ObjectNode payload)) {
+            return event;
+        }
+        ObjectNode trimmed = json.createObjectNode();
+        for (String field : payloadFields) {
+            if (payload.has(field)) {
+                trimmed.set(field, payload.get(field));
+            }
+        }
+        return new Event(event.id(), event.time(), event.type(), trimmed);
+    }
+
+    private List<String> toFieldList(String stored) {
+        return stored == null ? null : List.of(json.readValue(stored, String[].class));
     }
 
     List<PendingDelivery> due() {

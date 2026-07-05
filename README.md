@@ -18,12 +18,14 @@ hardware.
 
 **Record** — events land in a TimescaleDB hypertable via `POST /v1/events`;
 query newest-first with cursor pagination and type filtering; nothing expires
-unless you say so.
+unless you say so — and when you leave, `./scripts/export.sh` hands you
+everything in one restorable bundle.
 
 **Deliver** — register webhooks and every matching event is POSTed to them,
 HMAC-SHA256 signed with a per-subscription secret, retried five times with
 exponential backoff from a transactional outbox that survives restarts.
-Per-subscription `eventTypes` filters, updatable in place.
+Per-subscription `eventTypes` filters (updatable in place) and `payloadFields`
+allow-lists — each consumer receives only the payload fields it needs.
 
 **Replay** — pull subscriptions give any consumer a named durable cursor over
 the permanent log: start from the beginning, now, or any timestamp; fetch and
@@ -95,6 +97,7 @@ captured output) or let the script prove everything at once:
 | [Dashboard guide](docs/dashboard.md) | The tenant web UI: run it, every screen explained |
 | **Swagger UI** | `http://localhost:8080/swagger-ui.html` on any running instance (spec at `/v3/api-docs`) |
 | [Market positioning](docs/product/market-positioning.md) | Cited competitor pricing and where EventCore stands |
+| [Data handling & legal](docs/legal/data-handling.md) | GDPR-relevant controls, DPA/subprocessor templates, draft SLA |
 
 ## API at a glance
 
@@ -106,7 +109,7 @@ captured output) or let the script prove everything at once:
 | DELETE | `/v1/api-keys/{id}` | `X-Admin-Token` | Revoke a key immediately (record kept for audit) |
 | POST | `/v1/events` | `X-API-Key` | Ingest an event (`type` required, `payload` any JSON) |
 | GET | `/v1/events` | `X-API-Key` | List newest-first; `limit`, `cursor`, `type` |
-| POST | `/v1/webhooks` | `X-API-Key` | Register a webhook (`secret` shown once; optional `eventTypes`) |
+| POST | `/v1/webhooks` | `X-API-Key` | Register a webhook (`secret` shown once; optional `eventTypes` filter and `payloadFields` allow-list) |
 | GET | `/v1/webhooks` | `X-API-Key` | List subscriptions (never includes secrets) |
 | PATCH | `/v1/webhooks/{id}` | `X-API-Key` | Update `eventTypes` in place (same id, same secret) |
 | DELETE | `/v1/webhooks/{id}` | `X-API-Key` | Remove a subscription and its delivery history |

@@ -8,7 +8,7 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Set;
 
-record CreateWebhookRequest(String url, List<String> eventTypes) {
+record CreateWebhookRequest(String url, List<String> eventTypes, List<String> payloadFields) {
 
     private static final Set<String> DELIVERABLE_SCHEMES = Set.of("http", "https");
 
@@ -20,11 +20,17 @@ record CreateWebhookRequest(String url, List<String> eventTypes) {
             throw new InvalidRequestException("url must be a valid http(s) URL");
         }
         subscribedTypes();
+        deliveredFields();
     }
 
     /** Null means the subscription receives every event. */
     List<String> subscribedTypes() {
         return EventTypes.normalized(eventTypes);
+    }
+
+    /** Null means the full payload is delivered. */
+    List<String> deliveredFields() {
+        return PayloadFields.normalized(payloadFields);
     }
 
     private static boolean isDeliverable(String url) {
