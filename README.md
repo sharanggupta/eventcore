@@ -46,6 +46,22 @@ timelines with one-click redelivery, and per-consumer lag.
 **Secure** — API keys hashed at rest, shown once, revocable instantly;
 admin-token-guarded key management; deliveries verifiable by receivers.
 
+## How it fits together
+
+```mermaid
+flowchart LR
+    P["your systems"] -- "POST /v1/events" --> API["EventCore API"]
+    API --> DB[("TimescaleDB<br/>permanent log + outbox")]
+    DISP["dispatcher"] --> DB
+    DISP -- "signed webhooks,<br/>retried" --> WH["webhook receivers"]
+    PULL["pull consumers"] -- "fetch / commit / rewind" --> API
+    DASH["dashboard"] --> API
+    PROM["Prometheus"] -- "/metrics" --> API
+```
+
+More diagrams (event lifecycle, components, data model) in
+[docs/architecture.md](docs/architecture.md).
+
 ## Quick start
 
 Prerequisites: Docker with Compose, plus `curl` and `jq` for the examples below.
@@ -90,8 +106,10 @@ captured output) or let the script prove everything at once:
 
 | | |
 |---|---|
+| [Full-system tour](docs/full-system-tour.md) | Backend + demo app + dashboard together: place an order, watch it flow |
 | [Five-minute walkthrough](docs/walkthrough.md) | Copy-paste tour of every feature with real outputs |
 | [Testing guide](docs/testing/README.md) | Reproducible test suite, e2e script, failure/recovery drill |
+| [Architecture](docs/architecture.md) | Mermaid diagrams as code: system, event lifecycle, components, data model |
 | [Developer guide](docs/development.md) | Codebase tour, request lifecycle, how to add a feature |
 | [Integration examples](examples/README.md) | Runnable Spring Boot and Python apps that use EventCore end-to-end |
 | [Dashboard guide](docs/dashboard.md) | The tenant web UI: run it, every screen explained |

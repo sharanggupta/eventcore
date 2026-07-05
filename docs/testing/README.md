@@ -1,7 +1,22 @@
 # Testing EventCore
 
 Everything here is reproducible from a fresh clone. Each section states its
-prerequisites and the exact commands.
+prerequisites and the exact commands. Want the guided version with the demo
+app and the dashboard? Take the [full-system tour](../full-system-tour.md).
+
+## 0. Starting and stopping the backend
+
+Everything below (except the unit suite, which brings its own database via
+Testcontainers) assumes the stack is running:
+
+```bash
+docker compose up --build -d   # build + start app (8080) and TimescaleDB
+docker compose logs -f app     # watch the app logs (Ctrl-C to detach)
+docker compose down            # stop, keep data
+docker compose down -v         # stop and wipe the data volume
+```
+
+Confirm readiness with `curl http://localhost:8080/health` -> `OK`.
 
 ## 1. Integration test suite
 

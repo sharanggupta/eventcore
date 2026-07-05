@@ -3,6 +3,9 @@
 A tour for new contributors: where everything lives, how a request flows, and
 how to add a feature the way the existing ones were added.
 
+The visual version of everything below: [architecture.md](architecture.md)
+(Mermaid diagrams, rendered by GitHub).
+
 ## The map
 
 Everything is under [`backend/src/main/java/dev/eventcore`](../backend/src/main/java/dev/eventcore),
