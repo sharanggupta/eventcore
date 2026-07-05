@@ -20,3 +20,7 @@ eventcore:
     poll-interval: 1s
     retry-backoff: 5s
     max-attempts: 5
+  retention:
+    # 0 = keep forever (the self-hosted default). Examples: 90d, 720h.
+    events-max-age: ${RETENTION_EVENTS_MAX_AGE:0}
+    delivery-history-max-age: ${RETENTION_DELIVERY_HISTORY_MAX_AGE:0}
