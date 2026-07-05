@@ -64,17 +64,26 @@ class PullSubscriptionStore {
         return one(name).eventTypes();
     }
 
-    PullSubscription commit(String name, Cursor position) {
+    /** Moves the cursor; a null position rewinds to the beginning of the log. */
+    PullSubscription reposition(String name, Cursor position) {
         int updated = jdbc.sql("UPDATE pull_subscriptions "
                         + "SET position_time = :time, position_id = :id WHERE name = :name")
                 .param("name", name)
-                .param("time", position.time())
-                .param("id", position.id())
+                .param("time", position == null ? null : position.time(),
+                        Types.TIMESTAMP_WITH_TIMEZONE)
+                .param("id", position == null ? null : position.id(), Types.OTHER)
                 .update();
         if (updated == 0) {
             throw new NotFoundException("pull subscription not found");
         }
         return one(name);
+    }
+
+    List<PullSubscription> all() {
+        return jdbc.sql("SELECT name, position_time, position_id, event_types::text AS event_types, "
+                        + "created_at FROM pull_subscriptions ORDER BY name")
+                .query(this::toSubscription)
+                .list();
     }
 
     private PullSubscription toSubscription(ResultSet row, int rowNumber) throws SQLException {

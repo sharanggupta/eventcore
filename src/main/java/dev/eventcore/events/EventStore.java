@@ -63,6 +63,25 @@ public class EventStore {
         return statement.query(this::toEvent).list();
     }
 
+    /** How many events lie after the position; a pull consumer's lag. */
+    public long countAfter(Cursor position, List<String> types) {
+        StringBuilder sql = new StringBuilder("SELECT count(*) FROM events WHERE TRUE");
+        if (position != null) {
+            sql.append(" AND (time, id) > (:time, :id)");
+        }
+        if (types != null) {
+            sql.append(" AND type IN (:types)");
+        }
+        var statement = jdbc.sql(sql.toString());
+        if (position != null) {
+            statement = statement.param("time", position.time()).param("id", position.id());
+        }
+        if (types != null) {
+            statement = statement.param("types", types);
+        }
+        return statement.query(Long.class).single();
+    }
+
     EventPage page(EventQuery query) {
         List<Event> fetched = bindConditions(jdbc.sql(sqlFor(query)), query)
                 .param("limit", query.rowsToFetch())

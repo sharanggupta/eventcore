@@ -1,5 +1,6 @@
 package dev.eventcore.pull;
 
+import dev.eventcore.api.Cursor;
 import dev.eventcore.api.InvalidRequestException;
 import dev.eventcore.events.EventStore;
 
@@ -50,7 +51,30 @@ class PullSubscriptionsController {
     @Operation(summary = "Advance the cursor to a fetched batch's nextCursor (at-least-once)")
     @PostMapping("/{name}/commit")
     PullSubscription commit(@PathVariable String name, @RequestBody CommitRequest request) {
-        return subscriptions.commit(name, request.committedPosition());
+        return subscriptions.reposition(name, request.committedPosition());
+    }
+
+    @Operation(summary = "Rewind to the beginning or a timestamp; the consumer replays from there")
+    @PostMapping("/{name}/rewind")
+    PullSubscription rewind(@PathVariable String name, @RequestBody RewindRequest request) {
+        return subscriptions.reposition(name, request.target());
+    }
+
+    @Operation(summary = "Every consumer's position and lag - who is keeping up, who is stuck")
+    @GetMapping
+    PullFleet list() {
+        return new PullFleet(subscriptions.all().stream().map(this::statusOf).toList());
+    }
+
+    private PullSubscriptionStatus statusOf(PullSubscription subscription) {
+        Cursor position = subscription.position() == null ? null : Cursor.decode(subscription.position());
+        return new PullSubscriptionStatus(
+                subscription.name(),
+                subscription.position(),
+                position == null ? null : position.time(),
+                events.countAfter(position, subscription.eventTypes()),
+                subscription.eventTypes(),
+                subscription.createdAt());
     }
 
     private static void requireValidLimit(int limit) {

@@ -7,12 +7,8 @@ import dev.eventcore.events.EventTypes;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.UUID;
 
 record CreatePullSubscriptionRequest(String name, String from, List<String> eventTypes) {
-
-    private static final UUID FIRST_POSSIBLE_ID = new UUID(0, 0);
-    private static final UUID LAST_POSSIBLE_ID = new UUID(-1, -1);
 
     void validate() {
         if (name == null || name.isBlank()) {
@@ -26,8 +22,8 @@ record CreatePullSubscriptionRequest(String name, String from, List<String> even
     Cursor startingPoint() {
         return switch (from == null ? "now" : from) {
             case "beginning" -> null;
-            case "now" -> new Cursor(OffsetDateTime.now(), LAST_POSSIBLE_ID);
-            default -> new Cursor(parsedTimestamp(), FIRST_POSSIBLE_ID);
+            case "now" -> LogPositions.now();
+            default -> LogPositions.atTimestamp(parsedTimestamp());
         };
     }
 

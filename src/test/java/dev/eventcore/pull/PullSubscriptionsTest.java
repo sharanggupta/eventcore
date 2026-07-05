@@ -115,6 +115,92 @@ class PullSubscriptionsTest extends IntegrationTestBase {
     }
 
     @Test
+    void rewindingToTheBeginningReplaysEverything() {
+        OffsetDateTime now = OffsetDateTime.now();
+        insertEvent("replay.1", now.minusSeconds(20));
+        insertEvent("replay.2", now.minusSeconds(10));
+        createSubscription("{\"name\": \"repairer\", \"from\": \"beginning\"}");
+        PullBatch drained = fetch("repairer", 10);
+        commit("repairer", drained.nextCursor());
+        assertThat(fetch("repairer", 10).items()).isEmpty();
+
+        PullSubscription rewound = rewind("repairer", "{\"to\": \"beginning\"}");
+
+        assertThat(rewound.position()).isNull();
+        assertThat(fetch("repairer", 10).items())
+                .extracting(Event::type).containsExactly("replay.1", "replay.2");
+    }
+
+    @Test
+    void rewindingToATimestampReplaysFromThere() {
+        OffsetDateTime now = OffsetDateTime.now();
+        insertEvent("before.bug", now.minusSeconds(100));
+        insertEvent("since.bug", now.minusSeconds(10));
+        createSubscription("{\"name\": \"surgeon\", \"from\": \"beginning\"}");
+        commit("surgeon", fetch("surgeon", 10).nextCursor());
+
+        rewind("surgeon", "{\"to\": \"" + now.minusSeconds(50) + "\"}");
+
+        assertThat(fetch("surgeon", 10).items())
+                .extracting(Event::type).containsExactly("since.bug");
+    }
+
+    @Test
+    void aMalformedRewindTargetIsRejected() {
+        createSubscription("{\"name\": \"careful\"}");
+
+        var response = api().post().uri("/v1/pull-subscriptions/careful/rewind")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"to\": \"last-tuesday\"}")
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, res) -> { })
+                .toEntity(ApiError.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().error())
+                .isEqualTo("to must be \"beginning\" or an ISO-8601 timestamp");
+    }
+
+    @Test
+    void theFleetViewShowsEveryConsumersPositionAndLag() {
+        OffsetDateTime now = OffsetDateTime.now();
+        insertEvent("fleet.a", now.minusSeconds(30));
+        insertEvent("fleet.b", now.minusSeconds(20));
+        insertEvent("noise.z", now.minusSeconds(10));
+        createSubscription("{\"name\": \"backfiller\", \"from\": \"beginning\"}");
+        createSubscription("{\"name\": \"live-tail\", \"from\": \"now\"}");
+        createSubscription("""
+                {"name": "picky", "from": "beginning", "eventTypes": ["fleet.a", "fleet.b"]}
+                """);
+        commit("backfiller", fetch("backfiller", 1).nextCursor());
+
+        PullFleet fleet = api().get().uri("/v1/pull-subscriptions")
+                .retrieve().body(PullFleet.class);
+
+        assertThat(fleet.items()).extracting(PullSubscriptionStatus::name)
+                .containsExactlyInAnyOrder("backfiller", "live-tail", "picky");
+        PullSubscriptionStatus backfiller = statusOf(fleet, "backfiller");
+        assertThat(backfiller.lagEvents()).isEqualTo(2);
+        assertThat(backfiller.position()).isNotNull();
+        assertThat(backfiller.positionTime()).isNotNull();
+        assertThat(statusOf(fleet, "live-tail").lagEvents()).isZero();
+        assertThat(statusOf(fleet, "picky").lagEvents()).isEqualTo(2);
+    }
+
+    private PullSubscriptionStatus statusOf(PullFleet fleet, String name) {
+        return fleet.items().stream().filter(status -> status.name().equals(name))
+                .findFirst().orElseThrow();
+    }
+
+    private PullSubscription rewind(String name, String body) {
+        return api().post().uri("/v1/pull-subscriptions/" + name + "/rewind")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(PullSubscription.class);
+    }
+
+    @Test
     void aDuplicateNameIs409() {
         createSubscription("{\"name\": \"twice\"}");
 

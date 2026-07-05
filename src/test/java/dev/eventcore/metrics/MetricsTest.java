@@ -116,8 +116,8 @@ class MetricsTest extends IntegrationTestBase {
 
     private void insertDelivery(UUID subscription, String status, OffsetDateTime createdAt) {
         jdbc.sql("""
-                INSERT INTO webhook_deliveries (event_id, subscription_id, body, status, created_at)
-                VALUES (:eventId, :subscriptionId, CAST(:body AS jsonb), :status, :createdAt)
+                INSERT INTO webhook_deliveries (event_id, subscription_id, body, status, created_at, next_attempt_at)
+                VALUES (:eventId, :subscriptionId, CAST(:body AS jsonb), :status, :createdAt, NOW() + INTERVAL '1 hour')
                 """)
                 .param("eventId", UUID.randomUUID())
                 .param("subscriptionId", subscription)
