@@ -1,5 +1,7 @@
 package dev.eventcore;
 
+import dev.eventcore.security.ApiKeyStore;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -11,7 +13,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-abstract class IntegrationTestBase {
+public abstract class IntegrationTestBase {
 
     private static final DockerImageName TIMESCALE_IMAGE = DockerImageName
             .parse("timescale/timescaledb:latest-pg16")
