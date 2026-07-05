@@ -109,6 +109,78 @@ class WebhookSubscriptionsTest extends IntegrationTestBase {
     }
 
     @Test
+    void aFilteredSubscriptionEchoesItsEventTypes() {
+        RegisteredWebhook webhook = registerWebhook("""
+                {"url": "https://example.com/hooks/orders", "eventTypes": ["order.placed", "refund.issued"]}
+                """).body(RegisteredWebhook.class);
+
+        assertThat(webhook.eventTypes()).containsExactly("order.placed", "refund.issued");
+        assertThat(listWebhooks()).singleElement()
+                .satisfies(listed -> assertThat(listed.eventTypes())
+                        .containsExactly("order.placed", "refund.issued"));
+    }
+
+    @Test
+    void onlyMatchingEventsAreEnqueuedForAFilteredSubscription() {
+        RegisteredWebhook filtered = registerWebhook("""
+                {"url": "https://example.com/hooks/orders-only", "eventTypes": ["order.placed"]}
+                """).body(RegisteredWebhook.class);
+        RegisteredWebhook unfiltered = registerWebhook("""
+                {"url": "https://example.com/hooks/everything"}
+                """).body(RegisteredWebhook.class);
+
+        postEvent("order.placed");
+        postEvent("user.created");
+
+        assertThat(deliveryCountFor(filtered.id())).isEqualTo(1);
+        assertThat(deliveryCountFor(unfiltered.id())).isEqualTo(2);
+    }
+
+    @Test
+    void aBlankEventTypeIsRejected() {
+        ResponseEntity<ApiError> response = registerWebhookExpectingRejection("""
+                {"url": "https://example.com/hooks/x", "eventTypes": ["order.placed", "  "]}
+                """);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().error()).isEqualTo("event types must not be blank");
+    }
+
+    @Test
+    void updatingTheFilterKeepsTheSubscriptionIdAndSecret() {
+        RegisteredWebhook webhook = registerWebhook("""
+                {"url": "https://example.com/hooks/orders", "eventTypes": ["order.placed"]}
+                """).body(RegisteredWebhook.class);
+        String secretBefore = storedSecretOf(webhook.id());
+
+        WebhookSubscription updated = api().patch().uri("/v1/webhooks/" + webhook.id())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"eventTypes\": [\"order.placed\", \"return.received\"]}")
+                .retrieve()
+                .body(WebhookSubscription.class);
+
+        assertThat(updated.id()).isEqualTo(webhook.id());
+        assertThat(updated.eventTypes()).containsExactly("order.placed", "return.received");
+        assertThat(storedSecretOf(webhook.id())).isEqualTo(secretBefore);
+
+        postEvent("return.received");
+        assertThat(deliveryCountFor(webhook.id())).isEqualTo(1);
+    }
+
+    @Test
+    void updatingTheFilterOfAnUnknownSubscriptionIs404() {
+        ResponseEntity<ApiError> response = api().patch().uri("/v1/webhooks/" + UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"eventTypes\": [\"order.placed\"]}")
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, res) -> { })
+                .toEntity(ApiError.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().error()).isEqualTo("webhook subscription not found");
+    }
+
+    @Test
     void missingUrlIsRejected() {
         ResponseEntity<ApiError> response = registerWebhookExpectingRejection("{}");
 
@@ -160,5 +232,19 @@ class WebhookSubscriptionsTest extends IntegrationTestBase {
 
     private Long deliveryCount() {
         return jdbc.sql("SELECT count(*) FROM webhook_deliveries").query(Long.class).single();
+    }
+
+    private Long deliveryCountFor(UUID subscription) {
+        return jdbc.sql("SELECT count(*) FROM webhook_deliveries WHERE subscription_id = :id")
+                .param("id", subscription)
+                .query(Long.class)
+                .single();
+    }
+
+    private String storedSecretOf(UUID subscription) {
+        return jdbc.sql("SELECT secret FROM webhook_subscriptions WHERE id = :id")
+                .param("id", subscription)
+                .query(String.class)
+                .single();
     }
 }

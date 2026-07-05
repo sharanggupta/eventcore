@@ -2,9 +2,10 @@ package dev.eventcore;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 import java.util.Set;
 
-record CreateWebhookRequest(String url) {
+record CreateWebhookRequest(String url, List<String> eventTypes) {
 
     private static final Set<String> DELIVERABLE_SCHEMES = Set.of("http", "https");
 
@@ -15,6 +16,12 @@ record CreateWebhookRequest(String url) {
         if (!isDeliverable(url)) {
             throw new InvalidRequestException("url must be a valid http(s) URL");
         }
+        subscribedTypes();
+    }
+
+    /** Null means the subscription receives every event. */
+    List<String> subscribedTypes() {
+        return EventTypes.normalized(eventTypes);
     }
 
     private static boolean isDeliverable(String url) {

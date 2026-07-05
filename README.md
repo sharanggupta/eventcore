@@ -229,6 +229,16 @@ If your endpoint is down, EventCore retries up to 5 times with exponential
 backoff (5s, 10s, 20s, ...). Deliveries live in a database outbox, so pending
 retries survive an application restart.
 
+**Operating deliveries**: list the outbox with `GET /v1/deliveries`
+(`?status=failed` for dead letters), inspect a delivery's per-attempt history
+with `GET /v1/deliveries/{id}`, and recover with
+`POST /v1/deliveries/{id}/redeliver` (or bulk:
+`POST /v1/deliveries/redeliver` with `{"status": "failed"}`).
+
+**Filtering**: register with `"eventTypes": ["order.placed"]` to receive only
+those types (omit for everything); change it later with
+`PATCH /v1/webhooks/{id}` — the subscription keeps its id and signing secret.
+
 ### 5. Clean up
 
 Remove the webhook (its delivery history goes with it):
@@ -281,8 +291,9 @@ Stop the stack with `docker compose down` (add `-v` to also wipe the data).
 | GET | `/v1/deliveries/{id}` | `X-API-Key` | Delivery detail with per-attempt history (status code/error, response snippet, duration) |
 | POST | `/v1/deliveries/{id}/redeliver` | `X-API-Key` | Requeue a failed delivery for a fresh retry cycle (202); non-failed → 409 |
 | POST | `/v1/deliveries/redeliver` | `X-API-Key` | Bulk requeue: `{"status":"failed","subscriptionId":optional}` → `{"requeued":N}` |
-| POST | `/v1/webhooks` | `X-API-Key` | Register a webhook (signing `secret` shown once) |
+| POST | `/v1/webhooks` | `X-API-Key` | Register a webhook (signing `secret` shown once); optional `eventTypes` filter |
 | GET | `/v1/webhooks` | `X-API-Key` | List subscriptions (without secrets) |
+| PATCH | `/v1/webhooks/{id}` | `X-API-Key` | Update a subscription's `eventTypes` filter in place (same id, same secret) |
 | DELETE | `/v1/webhooks/{id}` | `X-API-Key` | Remove a subscription and its delivery history |
 
 Errors always come back as `{"error": "<what went wrong>"}` with `400`

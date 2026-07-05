@@ -3,6 +3,7 @@ package dev.eventcore;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,7 +28,16 @@ class WebhooksController {
     @ResponseStatus(HttpStatus.CREATED)
     RegisteredWebhook register(@RequestBody CreateWebhookRequest request) {
         request.validate();
-        return webhooks.register(request.url());
+        return webhooks.register(request.url(), request.subscribedTypes());
+    }
+
+    @PatchMapping("/{id}")
+    WebhookSubscription updateFilter(@PathVariable UUID id,
+                                     @RequestBody UpdateWebhookFilterRequest request) {
+        if (!webhooks.updateFilter(id, request.subscribedTypes())) {
+            throw new NotFoundException("webhook subscription not found");
+        }
+        return webhooks.one(id);
     }
 
     @GetMapping

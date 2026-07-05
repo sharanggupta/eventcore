@@ -31,9 +31,12 @@ class DeliveryOutbox {
     void enqueue(Event event) {
         jdbc.sql("""
                 INSERT INTO webhook_deliveries (event_id, subscription_id, body, gives_up_after)
-                SELECT :eventId, id, CAST(:body AS jsonb), :givesUpAfter FROM webhook_subscriptions
+                SELECT :eventId, id, CAST(:body AS jsonb), :givesUpAfter
+                FROM webhook_subscriptions
+                WHERE event_types IS NULL OR jsonb_exists(event_types, :type)
                 """)
                 .param("eventId", event.id())
+                .param("type", event.type())
                 .param("body", json.writeValueAsString(event))
                 .param("givesUpAfter", webhooks.maxAttempts())
                 .update();
