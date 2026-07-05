@@ -277,6 +277,7 @@ Stop the stack with `docker compose down` (add `-v` to also wipe the data).
 | DELETE | `/v1/api-keys/{id}` | `X-Admin-Token` | Revoke a key immediately |
 | POST | `/v1/events` | `X-API-Key` | Ingest an event (`type` required, `payload` optional JSON) |
 | GET | `/v1/events` | `X-API-Key` | List newest-first; `limit`, `cursor`, `type` params |
+| GET | `/v1/deliveries` | `X-API-Key` | List webhook deliveries newest-first; `status` (pending/delivered/failed), `limit`, `cursor` params |
 | POST | `/v1/webhooks` | `X-API-Key` | Register a webhook (signing `secret` shown once) |
 | GET | `/v1/webhooks` | `X-API-Key` | List subscriptions (without secrets) |
 | DELETE | `/v1/webhooks/{id}` | `X-API-Key` | Remove a subscription and its delivery history |

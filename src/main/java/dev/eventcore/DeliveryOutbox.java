@@ -6,6 +6,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -46,6 +47,47 @@ class DeliveryOutbox {
                 .param("batch", DELIVERIES_PER_POLL)
                 .query(this::toPendingDelivery)
                 .list();
+    }
+
+    DeliveryPage page(DeliveryQuery query) {
+        List<Delivery> fetched = bindConditions(jdbc.sql(sqlFor(query)), query)
+                .param("limit", query.rowsToFetch())
+                .query(this::toDelivery)
+                .list();
+        return DeliveryPage.from(fetched, query.limit());
+    }
+
+    private String sqlFor(DeliveryQuery query) {
+        StringBuilder sql = new StringBuilder(
+                "SELECT id, event_id, subscription_id, status, attempts, created_at "
+                        + "FROM webhook_deliveries WHERE TRUE");
+        if (query.filtersByStatus()) {
+            sql.append(" AND status = :status");
+        }
+        if (!query.startsFromTheTop()) {
+            sql.append(" AND (created_at, id) < (:createdAt, :id)");
+        }
+        return sql.append(" ORDER BY created_at DESC, id DESC LIMIT :limit").toString();
+    }
+
+    private JdbcClient.StatementSpec bindConditions(JdbcClient.StatementSpec statement, DeliveryQuery query) {
+        if (query.filtersByStatus()) {
+            statement = statement.param("status", query.status());
+        }
+        if (!query.startsFromTheTop()) {
+            statement = statement.param("createdAt", query.after().time()).param("id", query.after().id());
+        }
+        return statement;
+    }
+
+    private Delivery toDelivery(ResultSet row, int rowNumber) throws SQLException {
+        return new Delivery(
+                row.getObject("id", UUID.class),
+                row.getObject("event_id", UUID.class),
+                row.getObject("subscription_id", UUID.class),
+                row.getString("status"),
+                row.getInt("attempts"),
+                row.getObject("created_at", OffsetDateTime.class));
     }
 
     void recordSuccess(PendingDelivery delivery) {
