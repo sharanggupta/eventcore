@@ -69,8 +69,8 @@ public class DeliveryOutbox implements EventSink {
 
     /** Payload minimization: keep only the subscription's allow-listed top-level fields. */
     private Event deliverableViewOf(Event event, List<String> payloadFields) {
-        if (payloadFields == null || !(event.payload() instanceof ObjectNode payload)) {
-            return event;
+        if (payloadFields == null || payloadFields.isEmpty() || !(event.payload() instanceof ObjectNode payload)) {
+            return event; // no allow-list (or an empty one) means the full payload, never "drop everything"
         }
         ObjectNode trimmed = json.createObjectNode();
         for (String field : payloadFields) {
@@ -119,7 +119,8 @@ public class DeliveryOutbox implements EventSink {
         int requeued = jdbc.sql("""
                 UPDATE webhook_deliveries
                 SET status = 'pending', next_attempt_at = NOW(),
-                    gives_up_after = attempts + :maxAttempts
+                    gives_up_after = attempts + :maxAttempts,
+                    cycle_start_attempts = attempts
                 WHERE id = :id AND status = 'failed'
                 """)
                 .param("id", id)
@@ -137,7 +138,8 @@ public class DeliveryOutbox implements EventSink {
         StringBuilder sql = new StringBuilder("""
                 UPDATE webhook_deliveries
                 SET status = 'pending', next_attempt_at = NOW(),
-                    gives_up_after = attempts + :maxAttempts
+                    gives_up_after = attempts + :maxAttempts,
+                    cycle_start_attempts = attempts
                 WHERE status = 'failed'""");
         if (request.scopedToOneSubscription()) {
             sql.append(" AND subscription_id = :subscriptionId");
@@ -161,14 +163,14 @@ public class DeliveryOutbox implements EventSink {
                 UPDATE webhook_deliveries
                 SET attempts = attempts + 1,
                     status = CASE WHEN attempts + 1 >= gives_up_after THEN 'failed' ELSE 'pending' END,
-                    -- the backoff exponent restarts with each redelivery cycle
+                    -- backoff doubles each attempt within a cycle; the exponent is measured from the
+                    -- cycle's start attempt, so it never goes negative if max-attempts changes mid-flight
                     next_attempt_at = NOW()
-                        + (:backoffMillis * POWER(2, attempts - (gives_up_after - :maxAttempts)))
+                        + (:backoffMillis * POWER(2, GREATEST(0, attempts - cycle_start_attempts)))
                         * INTERVAL '1 millisecond'
                 WHERE id = :id
                 """)
                 .param("id", delivery.id())
-                .param("maxAttempts", properties.maxAttempts())
                 .param("backoffMillis", properties.retryBackoff().toMillis())
                 .update();
         recordAttempt(delivery, outcome);
