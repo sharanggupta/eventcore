@@ -3,6 +3,7 @@ package dev.eventcore.deliveries;
 import dev.eventcore.api.ConflictException;
 import dev.eventcore.api.NotFoundException;
 import dev.eventcore.events.Event;
+import dev.eventcore.events.EventSink;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -17,7 +18,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public class DeliveryOutbox {
+public class DeliveryOutbox implements EventSink {
 
     private static final int DELIVERIES_PER_POLL = 50;
     private static final String SELECT_DELIVERY =
@@ -33,6 +34,7 @@ public class DeliveryOutbox {
         this.properties = properties;
     }
 
+    @Override
     public void enqueue(Event event) {
         for (SubscriptionTarget target : targetsFor(event.type())) {
             insertDeliveryFor(event, target);

@@ -1,7 +1,5 @@
 package dev.eventcore.events;
 
-import dev.eventcore.deliveries.DeliveryOutbox;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -10,9 +8,9 @@ import tools.jackson.databind.JsonNode;
 class EventIngestion {
 
     private final EventStore events;
-    private final DeliveryOutbox outbox;
+    private final EventSink outbox;
 
-    EventIngestion(EventStore events, DeliveryOutbox outbox) {
+    EventIngestion(EventStore events, EventSink outbox) {
         this.events = events;
         this.outbox = outbox;
     }
