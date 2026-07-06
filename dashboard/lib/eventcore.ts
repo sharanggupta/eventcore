@@ -66,15 +66,26 @@ export function isConfigured(): boolean {
   return KEY.length > 0;
 }
 
-async function api<T>(path: string): Promise<T> {
+/** Every error EventCore returns has this shape (see the backend's ApiError). */
+type ApiError = { error?: string };
+
+/** The single request boundary: reads and writes, one place that turns a non-2xx into the API's own error. */
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE}${path}`, {
-    headers: { "X-API-Key": KEY },
     cache: "no-store",
+    ...init,
+    headers: {
+      "X-API-Key": KEY,
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...init?.headers,
+    },
   });
   if (!response.ok) {
-    throw new Error(`EventCore answered ${response.status} for ${path}`);
+    const body = (await response.json().catch(() => ({}))) as ApiError;
+    throw new Error(body.error ?? `EventCore answered ${response.status} for ${path}`);
   }
-  return response.json() as Promise<T>;
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export function listEvents(params: {
@@ -104,63 +115,34 @@ export function listWebhooks() {
   return api<Webhook[]>("/v1/webhooks");
 }
 
-export async function registerWebhook(input: {
+export function registerWebhook(input: {
   url: string;
   eventTypes?: string[];
   payloadFields?: string[];
 }): Promise<RegisteredWebhook> {
-  const response = await fetch(`${BASE}/v1/webhooks`, {
-    method: "POST",
-    headers: { "X-API-Key": KEY, "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error ?? `EventCore answered ${response.status}`);
-  return body as RegisteredWebhook;
+  return api<RegisteredWebhook>("/v1/webhooks", { method: "POST", body: JSON.stringify(input) });
 }
 
-export async function updateWebhookFilters(id: string, input: {
+export function updateWebhookFilters(id: string, input: {
   eventTypes?: string[];
   payloadFields?: string[];
 }): Promise<void> {
-  const response = await fetch(`${BASE}/v1/webhooks/${id}`, {
-    method: "PATCH",
-    headers: { "X-API-Key": KEY, "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.error ?? `filter update answered ${response.status}`);
-  }
+  return api<void>(`/v1/webhooks/${id}`, { method: "PATCH", body: JSON.stringify(input) });
 }
 
-export async function removeWebhook(id: string): Promise<void> {
-  const response = await fetch(`${BASE}/v1/webhooks/${id}`, {
-    method: "DELETE",
-    headers: { "X-API-Key": KEY },
-  });
-  if (!response.ok) throw new Error(`delete answered ${response.status}`);
+export function removeWebhook(id: string): Promise<void> {
+  return api<void>(`/v1/webhooks/${id}`, { method: "DELETE" });
 }
 
-export async function redeliverAllFailed(): Promise<number> {
-  const response = await fetch(`${BASE}/v1/deliveries/redeliver`, {
+export function redeliverAllFailed(): Promise<void> {
+  return api<void>("/v1/deliveries/redeliver", {
     method: "POST",
-    headers: { "X-API-Key": KEY, "Content-Type": "application/json" },
     body: JSON.stringify({ status: "failed" }),
   });
-  if (!response.ok) throw new Error(`bulk redelivery answered ${response.status}`);
-  const batch = (await response.json()) as { requeued: number };
-  return batch.requeued;
 }
 
-export async function redeliver(id: string): Promise<void> {
-  const response = await fetch(`${BASE}/v1/deliveries/${id}/redeliver`, {
-    method: "POST",
-    headers: { "X-API-Key": KEY },
-  });
-  if (!response.ok) {
-    throw new Error(`redelivery answered ${response.status}`);
-  }
+export function redeliver(id: string): Promise<void> {
+  return api<void>(`/v1/deliveries/${id}/redeliver`, { method: "POST" });
 }
 
 /** /metrics is Prometheus text; parse just the eventcore_* series the UI shows. */
