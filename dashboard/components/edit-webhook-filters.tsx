@@ -6,8 +6,8 @@ import { updateFiltersAction, type UpdateResult } from "@/app/webhooks/actions";
 /** Inline PATCH editor: change a subscription's filters, keep its id and secret. */
 export function EditWebhookFilters({ id, eventTypes, payloadFields }: {
   id: string;
-  eventTypes: string[] | null;
-  payloadFields: string[] | null;
+  eventTypes?: string[];
+  payloadFields?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [result, submit, pending] = useActionState<UpdateResult, FormData>(

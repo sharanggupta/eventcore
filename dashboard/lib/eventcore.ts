@@ -41,7 +41,7 @@ export type PullSubscriptionStatus = {
   position: string | null;
   positionTime: string | null;
   lagEvents: number;
-  eventTypes: string[] | null;
+  eventTypes?: string[];
   createdAt: string;
 };
 
@@ -49,8 +49,8 @@ export type Webhook = {
   id: string;
   createdAt: string;
   url: string;
-  eventTypes: string[] | null;
-  payloadFields: string[] | null;
+  eventTypes?: string[];
+  payloadFields?: string[];
 };
 
 export type RegisteredWebhook = Webhook & { secret: string };

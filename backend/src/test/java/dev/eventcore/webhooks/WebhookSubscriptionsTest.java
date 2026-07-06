@@ -45,6 +45,25 @@ class WebhookSubscriptionsTest extends IntegrationTestBase {
     }
 
     @Test
+    void aNoFilterSubscriptionOmitsTheEmptyFilterFieldsFromItsJson() {
+        String registeredAsJson = registerWebhook("""
+                {"url": "https://example.com/hooks/plain"}
+                """).body(String.class);
+        assertThat(registeredAsJson).doesNotContain("eventTypes").doesNotContain("payloadFields");
+
+        String listedAsJson = api().get().uri("/v1/webhooks").retrieve().body(String.class);
+        assertThat(listedAsJson).doesNotContain("eventTypes").doesNotContain("payloadFields");
+    }
+
+    @Test
+    void aFilteredSubscriptionKeepsItsFilterFieldsInItsJson() {
+        String registeredAsJson = registerWebhook("""
+                {"url": "https://example.com/hooks/filtered", "eventTypes": ["order.placed"], "payloadFields": ["orderId"]}
+                """).body(String.class);
+        assertThat(registeredAsJson).contains("\"eventTypes\"").contains("\"payloadFields\"");
+    }
+
+    @Test
     void aSubscriptionCanLimitTheDeliveredPayloadToChosenFields() {
         RegisteredWebhook minimal = registerWebhook("""
                 {"url": "https://example.com/hooks/minimal", "payloadFields": ["orderId"]}
