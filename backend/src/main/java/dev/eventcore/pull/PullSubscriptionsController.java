@@ -70,8 +70,7 @@ class PullSubscriptionsController {
         Cursor position = subscription.position() == null ? null : Cursor.decode(subscription.position());
         return new PullSubscriptionStatus(
                 subscription.name(),
-                subscription.position(),
-                position == null ? null : position.time(),
+                position == null ? "beginning" : position.time().toString(),
                 events.countAfter(position, subscription.eventTypes()),
                 subscription.eventTypes(),
                 subscription.createdAt());

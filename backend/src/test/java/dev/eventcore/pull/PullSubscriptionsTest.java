@@ -181,8 +181,9 @@ class PullSubscriptionsTest extends IntegrationTestBase {
                 .containsExactlyInAnyOrder("backfiller", "live-tail", "picky");
         PullSubscriptionStatus backfiller = statusOf(fleet, "backfiller");
         assertThat(backfiller.lagEvents()).isEqualTo(2);
-        assertThat(backfiller.position()).isNotNull();
-        assertThat(backfiller.positionTime()).isNotNull();
+        assertThat(backfiller.position()).isNotEqualTo("beginning");
+        assertThat(OffsetDateTime.parse(backfiller.position())).isNotNull();
+        assertThat(statusOf(fleet, "picky").position()).isEqualTo("beginning");
         assertThat(statusOf(fleet, "live-tail").lagEvents()).isZero();
         assertThat(statusOf(fleet, "picky").lagEvents()).isEqualTo(2);
     }

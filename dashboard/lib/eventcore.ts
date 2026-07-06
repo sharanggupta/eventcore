@@ -38,8 +38,7 @@ export type DeliveryDetail = Delivery & { deliveryAttempts: DeliveryAttempt[] };
 
 export type PullSubscriptionStatus = {
   name: string;
-  position: string | null;
-  positionTime: string | null;
+  position: string; // "beginning" or an ISO-8601 timestamp
   lagEvents: number;
   eventTypes?: string[];
   createdAt: string;
