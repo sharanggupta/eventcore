@@ -28,8 +28,9 @@ class DeliveriesController {
         this.deliveries = deliveries;
     }
 
-@Operation(summary = "List deliveries newest-first; filter by status pending/delivered/failed")
-    @GetMapping    DeliveryPage list(@RequestParam(defaultValue = "50") int limit,
+    @Operation(summary = "List deliveries newest-first; filter by status pending/delivered/failed")
+    @GetMapping
+    DeliveryPage list(@RequestParam(defaultValue = "50") int limit,
                       @RequestParam(required = false) String cursor,
                       @RequestParam(required = false) String status,
                       @RequestParam(required = false) String from,
@@ -37,20 +38,23 @@ class DeliveriesController {
         return deliveries.page(DeliveryQuery.of(limit, cursor, status, from, to));
     }
 
-@Operation(summary = "Delivery detail with the per-attempt history: status codes, errors, snippets, durations")
-    @GetMapping("/{id}")    DeliveryDetail detail(@PathVariable UUID id) {
+    @Operation(summary = "Delivery detail with the per-attempt history: status codes, errors, snippets, durations")
+    @GetMapping("/{id}")
+    DeliveryDetail detail(@PathVariable UUID id) {
         return deliveries.find(id)
                 .orElseThrow(() -> new NotFoundException("delivery not found"));
     }
 
-@Operation(summary = "Requeue one failed delivery for a fresh retry cycle; non-failed answers 409")
-    @PostMapping("/{id}/redeliver")    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Requeue one failed delivery for a fresh retry cycle; non-failed answers 409")
+    @PostMapping("/{id}/redeliver")
+    @ResponseStatus(HttpStatus.ACCEPTED)
     RedeliveryReceipt redeliver(@PathVariable UUID id) {
         return deliveries.requeue(id);
     }
 
-@Operation(summary = "Bulk requeue failed deliveries, optionally scoped to one subscription")
-    @PostMapping("/redeliver")    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Bulk requeue failed deliveries, optionally scoped to one subscription")
+    @PostMapping("/redeliver")
+    @ResponseStatus(HttpStatus.ACCEPTED)
     RedeliveredBatch redeliverAll(@RequestBody BulkRedeliveryRequest request) {
         request.validate();
         return deliveries.requeueAllFailed(request);

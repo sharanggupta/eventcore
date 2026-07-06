@@ -135,17 +135,18 @@ public class DeliveryOutbox implements EventSink {
     }
 
     RedeliveredBatch requeueAllFailed(BulkRedeliveryRequest request) {
+        boolean scopedToOneSubscription = request.scopedToOneSubscription();
         StringBuilder sql = new StringBuilder("""
                 UPDATE webhook_deliveries
                 SET status = 'pending', next_attempt_at = NOW(),
                     gives_up_after = attempts + :maxAttempts,
                     cycle_start_attempts = attempts
                 WHERE status = 'failed'""");
-        if (request.scopedToOneSubscription()) {
+        if (scopedToOneSubscription) {
             sql.append(" AND subscription_id = :subscriptionId");
         }
         var statement = jdbc.sql(sql.toString()).param("maxAttempts", properties.maxAttempts());
-        if (request.scopedToOneSubscription()) {
+        if (scopedToOneSubscription) {
             statement = statement.param("subscriptionId", request.subscriptionId());
         }
         return new RedeliveredBatch(statement.update());

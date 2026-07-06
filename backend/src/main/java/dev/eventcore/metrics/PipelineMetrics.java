@@ -11,6 +11,7 @@ import java.util.Map;
 class PipelineMetrics {
 
     private static final List<String> DELIVERY_STATUSES = List.of("pending", "delivered", "failed");
+    private static final List<String> DELIVERY_RESULTS = List.of("accepted", "rejected");
 
     private final JdbcClient jdbc;
 
@@ -50,7 +51,8 @@ class PipelineMetrics {
     }
 
     Map<String, Long> deliveryAttemptsByResult() {
-        Map<String, Long> counts = new LinkedHashMap<>(Map.of("accepted", 0L, "rejected", 0L));
+        Map<String, Long> counts = new LinkedHashMap<>();
+        DELIVERY_RESULTS.forEach(result -> counts.put(result, 0L));
         jdbc.sql("""
                 SELECT CASE WHEN status_code BETWEEN 200 AND 299 THEN 'accepted' ELSE 'rejected' END AS result,
                        count(*) AS total
