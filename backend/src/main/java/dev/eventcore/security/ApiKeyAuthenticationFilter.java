@@ -18,6 +18,7 @@ import java.io.IOException;
 class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String API_KEY_HEADER = "X-API-Key";
+    private static final String VERSIONED_PREFIX = "/v1/";
 
     private final ApiKeyStore apiKeys;
     private final ObjectMapper json;
@@ -43,7 +44,12 @@ class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private static boolean isProtected(String path) {
-        return path.startsWith("/v1/") && !path.startsWith("/v1/api-keys");
+        return path.startsWith(VERSIONED_PREFIX) && !isKeyManagement(path);
+    }
+
+    /** Key management guards itself with the admin token, so X-API-Key must not gate it — but only it, not a lookalike like /v1/api-keys-usage. */
+    private static boolean isKeyManagement(String path) {
+        return path.equals(ApiKeysController.BASE_PATH) || path.startsWith(ApiKeysController.BASE_PATH + "/");
     }
 
     private boolean holdsARecognizedKey(HttpServletRequest request) {

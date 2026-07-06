@@ -16,28 +16,29 @@ class MetricsController {
         this.pipeline = pipeline;
     }
 
-@Operation(summary = "Scrape pipeline metrics: delivery states, backlog age, ingest totals, per-type last-received")
-    @GetMapping(value = "/metrics", produces = "text/plain; version=0.0.4; charset=utf-8")    String metrics() {
+    @Operation(summary = "Scrape pipeline metrics: delivery states, backlog age, ingest totals, per-type last-received")
+    @GetMapping(value = "/metrics", produces = "text/plain; version=0.0.4; charset=utf-8")
+    String metrics() {
         StringBuilder exposition = new StringBuilder();
 
-        typeHeader(exposition, "eventcore_deliveries", "Webhook deliveries by status");
+        gauge(exposition, "eventcore_deliveries", "Webhook deliveries by status");
         pipeline.deliveriesByStatus().forEach((status, count) ->
                 labelled(exposition, "eventcore_deliveries", "status", status, count));
 
-        typeHeader(exposition, "eventcore_oldest_pending_delivery_age_seconds",
+        gauge(exposition, "eventcore_oldest_pending_delivery_age_seconds",
                 "Age of the oldest pending delivery, 0 when none");
         plain(exposition, "eventcore_oldest_pending_delivery_age_seconds",
                 pipeline.oldestPendingDeliveryAgeSeconds());
 
-        typeHeader(exposition, "eventcore_events_ingested_total", "Events stored in the log");
+        counter(exposition, "eventcore_events_ingested_total", "Events stored in the log");
         plain(exposition, "eventcore_events_ingested_total", pipeline.eventsIngestedTotal());
 
-        typeHeader(exposition, "eventcore_delivery_attempts_total",
+        counter(exposition, "eventcore_delivery_attempts_total",
                 "Delivery attempts by result (accepted = 2xx)");
         pipeline.deliveryAttemptsByResult().forEach((result, count) ->
                 labelled(exposition, "eventcore_delivery_attempts_total", "result", result, count));
 
-        typeHeader(exposition, "eventcore_event_last_received_timestamp_seconds",
+        gauge(exposition, "eventcore_event_last_received_timestamp_seconds",
                 "When each event type last arrived; alert on time() - this > 900");
         pipeline.lastReceivedEpochSecondsByType().forEach((type, epochSeconds) ->
                 labelled(exposition, "eventcore_event_last_received_timestamp_seconds", "type", type, epochSeconds));
@@ -45,9 +46,17 @@ class MetricsController {
         return exposition.toString();
     }
 
-    private static void typeHeader(StringBuilder exposition, String metric, String help) {
+    private static void gauge(StringBuilder exposition, String metric, String help) {
+        typeHeader(exposition, metric, "gauge", help);
+    }
+
+    private static void counter(StringBuilder exposition, String metric, String help) {
+        typeHeader(exposition, metric, "counter", help);
+    }
+
+    private static void typeHeader(StringBuilder exposition, String metric, String type, String help) {
         exposition.append("# HELP ").append(metric).append(' ').append(help).append('\n')
-                .append("# TYPE ").append(metric).append(" gauge\n");
+                .append("# TYPE ").append(metric).append(' ').append(type).append('\n');
     }
 
     private static void plain(StringBuilder exposition, String metric, long value) {

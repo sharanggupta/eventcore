@@ -27,7 +27,8 @@ class MetricsTest extends IntegrationTestBase {
         String metrics = scrapeMetrics();
 
         assertThat(metrics).contains("# TYPE eventcore_deliveries gauge");
-        assertThat(metrics).contains("# TYPE eventcore_events_ingested_total gauge");
+        assertThat(metrics).contains("# TYPE eventcore_events_ingested_total counter");
+        assertThat(metrics).contains("# TYPE eventcore_delivery_attempts_total counter");
     }
 
     @Test

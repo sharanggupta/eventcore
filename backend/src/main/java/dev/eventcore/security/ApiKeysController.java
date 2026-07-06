@@ -20,8 +20,11 @@ import java.util.UUID;
 
 @Tag(name = "API keys", description = "Admin-token-guarded key management; only SHA-256 hashes are stored")
 @RestController
-@RequestMapping("/v1/api-keys")
+@RequestMapping(ApiKeysController.BASE_PATH)
 class ApiKeysController {
+
+    /** The one place this route is spelled; the auth filter reads it to decide what X-API-Key does not guard. */
+    static final String BASE_PATH = "/v1/api-keys";
 
     private final ApiKeyStore apiKeys;
     private final SecurityProperties security;

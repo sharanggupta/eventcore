@@ -16,7 +16,7 @@ import org.testcontainers.utility.DockerImageName;
 public abstract class IntegrationTestBase {
 
     private static final DockerImageName TIMESCALE_IMAGE = DockerImageName
-            .parse("timescale/timescaledb:latest-pg16")
+            .parse("timescale/timescaledb:2.27.0-pg16")
             .asCompatibleSubstituteFor("postgres");
 
     // Singleton container shared across all test classes; Ryuk stops it when the JVM exits.
