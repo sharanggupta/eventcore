@@ -76,23 +76,6 @@ class RetentionTest extends IntegrationTestBase {
         return jdbc.sql("SELECT count(*) FROM " + table).query(Long.class).single();
     }
 
-    private void insertEvent(String type, OffsetDateTime time) {
-        jdbc.sql("INSERT INTO events (id, time, type) VALUES (:id, :time, :type)")
-                .param("id", UUID.randomUUID())
-                .param("time", time)
-                .param("type", type)
-                .update();
-    }
-
-    private UUID insertSubscription() {
-        UUID id = UUID.randomUUID();
-        jdbc.sql("INSERT INTO webhook_subscriptions (id, url, secret) VALUES (:id, :url, :secret)")
-                .param("id", id)
-                .param("url", "https://example.com/hooks/retention-test")
-                .param("secret", "whsec_test")
-                .update();
-        return id;
-    }
 
     private UUID insertDelivery(UUID subscription, OffsetDateTime createdAt) {
         UUID id = UUID.randomUUID();

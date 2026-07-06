@@ -43,6 +43,7 @@ import static org.awaitility.Awaitility.await;
 class WebhookDeliveryTest extends IntegrationTestBase {
 
     private static final Duration PATIENCE = Duration.ofSeconds(15);
+    private static final int MAX_ATTEMPTS = 5; // mirrors eventcore.webhooks.max-attempts
 
     @Autowired
     private JdbcClient jdbc;
@@ -119,7 +120,7 @@ class WebhookDeliveryTest extends IntegrationTestBase {
         await().atMost(PATIENCE).untilAsserted(() ->
                 assertThat(subscriber.inbox("retried")).hasSize(1));
         DeliveryDetail detail = theOnlyDeliveryDetail();
-        assertThat(detail.deliveryAttempts()).hasSize(5);
+        assertThat(detail.deliveryAttempts()).hasSize(MAX_ATTEMPTS);
         assertThat(detail.deliveryAttempts()).extracting(DeliveryAttempt::attempt)
                 .containsExactly(1, 2, 3, 4, 5);
         DeliveryAttempt firstFailure = detail.deliveryAttempts().getFirst();
@@ -134,7 +135,7 @@ class WebhookDeliveryTest extends IntegrationTestBase {
         subscribe("recovering");
         postEvent("order.stuck", null);
         await().atMost(PATIENCE).untilAsserted(() ->
-                assertThat(theOnlyDelivery()).isEqualTo(new DeliveryRecord("failed", 5)));
+                assertThat(theOnlyDelivery()).isEqualTo(new DeliveryRecord("failed", MAX_ATTEMPTS)));
 
         subscriber.failNextAttempts(0);
         var receipt = api().post()
@@ -155,7 +156,7 @@ class WebhookDeliveryTest extends IntegrationTestBase {
         subscribe("hopeless");
         postEvent("order.doomed", null);
         await().atMost(PATIENCE).untilAsserted(() ->
-                assertThat(theOnlyDelivery()).isEqualTo(new DeliveryRecord("failed", 5)));
+                assertThat(theOnlyDelivery()).isEqualTo(new DeliveryRecord("failed", MAX_ATTEMPTS)));
 
         api().post()
                 .uri("/v1/deliveries/" + theOnlyDeliveryDetail().id() + "/redeliver")
@@ -175,7 +176,7 @@ class WebhookDeliveryTest extends IntegrationTestBase {
 
         await().atMost(PATIENCE).untilAsserted(() ->
                 assertThat(subscriber.inbox("flaky")).hasSize(1));
-        assertThat(theOnlyDelivery()).isEqualTo(new DeliveryRecord("delivered", 5));
+        assertThat(theOnlyDelivery()).isEqualTo(new DeliveryRecord("delivered", MAX_ATTEMPTS));
     }
 
     @Test
@@ -186,7 +187,7 @@ class WebhookDeliveryTest extends IntegrationTestBase {
         postEvent("user.churned", null);
 
         await().atMost(PATIENCE).untilAsserted(() ->
-                assertThat(theOnlyDelivery()).isEqualTo(new DeliveryRecord("failed", 5)));
+                assertThat(theOnlyDelivery()).isEqualTo(new DeliveryRecord("failed", MAX_ATTEMPTS)));
         assertThat(subscriber.inbox("dead")).isEmpty();
     }
 

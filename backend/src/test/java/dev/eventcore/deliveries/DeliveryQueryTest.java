@@ -218,16 +218,6 @@ class DeliveryQueryTest extends IntegrationTestBase {
         return jdbc.sql("SELECT id FROM webhook_deliveries").query(UUID.class).single();
     }
 
-    private UUID insertSubscription() {
-        UUID id = UUID.randomUUID();
-        jdbc.sql("INSERT INTO webhook_subscriptions (id, url, secret) VALUES (:id, :url, :secret)")
-                .param("id", id)
-                .param("url", "https://example.com/hooks/outbox-test")
-                .param("secret", "whsec_test")
-                .update();
-        return id;
-    }
-
     private void insertDelivery(String status, int attempts, OffsetDateTime createdAt) {
         insertDeliveryFor(subscriptionId, status, attempts, createdAt);
     }

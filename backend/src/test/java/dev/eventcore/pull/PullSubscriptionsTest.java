@@ -294,12 +294,4 @@ class PullSubscriptionsTest extends IntegrationTestBase {
                 .retrieve()
                 .toBodilessEntity();
     }
-
-    private void insertEvent(String type, OffsetDateTime time) {
-        jdbc.sql("INSERT INTO events (id, time, type) VALUES (:id, :time, :type)")
-                .param("id", UUID.randomUUID())
-                .param("time", time)
-                .param("type", type)
-                .update();
-    }
 }

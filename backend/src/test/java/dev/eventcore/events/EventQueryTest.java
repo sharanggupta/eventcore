@@ -212,7 +212,9 @@ class EventQueryTest extends IntegrationTestBase {
                 .toEntity(ApiError.class);
     }
 
-    private void insertEvent(String type, OffsetDateTime time) {
+    /** These query tests need a payload to assert on, so override the bare fixture with a sequenced one. */
+    @Override
+    protected void insertEvent(String type, OffsetDateTime time) {
         jdbc.sql("INSERT INTO events (id, time, type, payload) "
                         + "VALUES (:id, :time, :type, CAST(:payload AS jsonb))")
                 .param("id", UUID.randomUUID())

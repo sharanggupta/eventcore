@@ -12,6 +12,9 @@ import org.springframework.web.client.RestClient;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public abstract class IntegrationTestBase {
 
@@ -49,7 +52,27 @@ public abstract class IntegrationTestBase {
     private ApiKeyStore apiKeys;
 
     @Autowired
-    private JdbcClient jdbc;
+    protected JdbcClient jdbc;
+
+    /** Stores a bare event straight into the log — the shared fixture for query/metrics/retention tests. */
+    protected void insertEvent(String type, OffsetDateTime time) {
+        jdbc.sql("INSERT INTO events (id, time, type) VALUES (:id, :time, :type)")
+                .param("id", UUID.randomUUID())
+                .param("time", time)
+                .param("type", type)
+                .update();
+    }
+
+    /** Registers a bare subscription and returns its id — the shared fixture for delivery/metrics tests. */
+    protected UUID insertSubscription() {
+        UUID id = UUID.randomUUID();
+        jdbc.sql("INSERT INTO webhook_subscriptions (id, url, secret) VALUES (:id, :url, :secret)")
+                .param("id", id)
+                .param("url", "https://example.com/hooks/test")
+                .param("secret", "whsec_test")
+                .update();
+        return id;
+    }
 
     /** Deletes in foreign-key-safe order; keeps api_keys so the shared test key stays valid. */
     protected void wipeAllData() {

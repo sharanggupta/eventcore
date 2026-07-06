@@ -105,16 +105,6 @@ class MetricsTest extends IntegrationTestBase {
                 .orElseThrow(() -> new AssertionError(metricName + " not found in:\n" + metrics));
     }
 
-    private UUID insertSubscription() {
-        UUID id = UUID.randomUUID();
-        jdbc.sql("INSERT INTO webhook_subscriptions (id, url, secret) VALUES (:id, :url, :secret)")
-                .param("id", id)
-                .param("url", "https://example.com/hooks/metrics-test")
-                .param("secret", "whsec_test")
-                .update();
-        return id;
-    }
-
     private void insertDelivery(UUID subscription, String status, OffsetDateTime createdAt) {
         jdbc.sql("""
                 INSERT INTO webhook_deliveries (event_id, subscription_id, body, status, created_at, next_attempt_at)
@@ -136,14 +126,6 @@ class MetricsTest extends IntegrationTestBase {
                 .param("deliveryId", deliveryId)
                 .param("attempt", attempt)
                 .param("statusCode", statusCode)
-                .update();
-    }
-
-    private void insertEvent(String type, OffsetDateTime time) {
-        jdbc.sql("INSERT INTO events (id, time, type) VALUES (:id, :time, :type)")
-                .param("id", UUID.randomUUID())
-                .param("time", time)
-                .param("type", type)
                 .update();
     }
 }
