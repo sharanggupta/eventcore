@@ -4,8 +4,6 @@ import dev.eventcore.api.Cursor;
 import dev.eventcore.api.InvalidRequestException;
 import dev.eventcore.events.EventTypes;
 
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 
 record CreatePullSubscriptionRequest(String name, String from, List<String> eventTypes) {
@@ -14,29 +12,15 @@ record CreatePullSubscriptionRequest(String name, String from, List<String> even
         if (name == null || name.isBlank()) {
             throw new InvalidRequestException("name is required");
         }
-        startingPoint();
-        subscribedTypes();
     }
 
-    /** Null means the beginning of the log. Defaults to "now" when absent. */
+    /** Resolves the starting cursor once (and validates {@code from}); absent means "now", null means the beginning. */
     Cursor startingPoint() {
-        return switch (from == null ? "now" : from) {
-            case "beginning" -> null;
-            case "now" -> LogPositions.now();
-            default -> LogPositions.atTimestamp(parsedTimestamp());
-        };
+        return LogPositions.parse(from == null ? LogPositions.NOW : from, true,
+                "from must be \"beginning\", \"now\", or an ISO-8601 timestamp");
     }
 
     List<String> subscribedTypes() {
         return EventTypes.normalized(eventTypes);
-    }
-
-    private OffsetDateTime parsedTimestamp() {
-        try {
-            return OffsetDateTime.parse(from);
-        } catch (DateTimeParseException malformed) {
-            throw new InvalidRequestException(
-                    "from must be \"beginning\", \"now\", or an ISO-8601 timestamp");
-        }
     }
 }
