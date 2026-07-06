@@ -17,13 +17,15 @@ hardware.
 ## Features
 
 **Record** — events land in a TimescaleDB hypertable via `POST /v1/events`;
-query newest-first with cursor pagination and type filtering; nothing expires
-unless you say so — and when you leave, `./scripts/export.sh` hands you
-everything in one restorable bundle.
+query newest-first with cursor pagination, type and time-range filtering, and
+payload-field search (`payload.userId=u_123`, dotted paths reach nested
+fields); nothing expires unless you say so — and when you leave,
+`./scripts/export.sh` hands you everything in one restorable bundle.
 
 **Deliver** — register webhooks and every matching event is POSTed to them,
-HMAC-SHA256 signed with a per-subscription secret, retried five times with
-exponential backoff from a transactional outbox that survives restarts.
+HMAC-SHA256 signed with a per-subscription secret, retried with exponential
+backoff up to five attempts in all, from a transactional outbox that survives
+restarts.
 Per-subscription `eventTypes` filters (updatable in place) and `payloadFields`
 allow-lists — each consumer receives only the payload fields it needs.
 
@@ -101,7 +103,7 @@ captured output) or let the script prove everything at once:
 | [`dashboard/`](dashboard) | Tenant web dashboard (Next.js) — see the [guide](docs/dashboard.md) |
 | [`examples/`](examples) | Runnable integration examples (Spring Boot, Python) |
 | [`docs/`](docs) | Walkthrough, testing and developer guides, product research |
-| [`scripts/`](scripts) | End-to-end walkthrough script, local webhook listener |
+| [`scripts/`](scripts) | End-to-end walkthrough script, local webhook listener, data export/restore (`export.sh` / `restore.sh`) |
 
 ## Documentation
 
@@ -114,33 +116,25 @@ captured output) or let the script prove everything at once:
 | [Developer guide](docs/development.md) | Codebase tour, request lifecycle, how to add a feature |
 | [Integration examples](examples/README.md) | Runnable Spring Boot and Python apps that use EventCore end-to-end |
 | [Dashboard guide](docs/dashboard.md) | The tenant web UI: run it, every screen explained |
-| **Swagger UI** | `http://localhost:8080/swagger-ui.html` on any running instance (spec at `/v3/api-docs`) |
 | [Market positioning](docs/product/market-positioning.md) | Cited competitor pricing and where EventCore stands |
 | [Data handling & legal](docs/legal/data-handling.md) | GDPR-relevant controls, DPA/subprocessor templates, draft SLA |
 
-## API at a glance
+## API
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/health` | none | Liveness, returns `OK` |
-| GET | `/metrics` | none | Prometheus text: delivery states, backlog age, ingest totals, per-type last-received |
-| POST | `/v1/api-keys` | `X-Admin-Token` | Issue an API key (plaintext shown once) |
-| DELETE | `/v1/api-keys/{id}` | `X-Admin-Token` | Revoke a key immediately (record kept for audit) |
-| POST | `/v1/events` | `X-API-Key` | Ingest an event (`type` required, `payload` any JSON) |
-| GET | `/v1/events` | `X-API-Key` | List newest-first; `limit`, `cursor`, `type`, `from`/`to`, `payload.<field>=<value>` (dotted fields walk nesting; repeatable, AND-ed) |
-| POST | `/v1/webhooks` | `X-API-Key` | Register a webhook (`secret` shown once; optional `eventTypes` filter and `payloadFields` allow-list) |
-| GET | `/v1/webhooks` | `X-API-Key` | List subscriptions (never includes secrets) |
-| PATCH | `/v1/webhooks/{id}` | `X-API-Key` | Update `eventTypes` in place (same id, same secret) |
-| DELETE | `/v1/webhooks/{id}` | `X-API-Key` | Remove a subscription and its delivery history |
-| GET | `/v1/deliveries` | `X-API-Key` | List deliveries; filter `status=pending\|delivered\|failed` |
-| GET | `/v1/deliveries/{id}` | `X-API-Key` | Per-attempt history: status/error, snippet, duration |
-| POST | `/v1/deliveries/{id}/redeliver` | `X-API-Key` | Fresh retry cycle for a failed delivery |
-| POST | `/v1/deliveries/redeliver` | `X-API-Key` | Bulk requeue: `{"status":"failed"}` → `{"requeued":N}` |
-| POST | `/v1/pull-subscriptions` | `X-API-Key` | Create a named durable cursor (`from`: `beginning`/`now`/timestamp; optional `eventTypes`) |
-| GET | `/v1/pull-subscriptions/{name}/events` | `X-API-Key` | Fetch the next batch oldest-first (peek; does not advance) |
-| POST | `/v1/pull-subscriptions/{name}/commit` | `X-API-Key` | Advance the cursor — crash-safe, at-least-once consumption |
+Every running instance serves interactive docs and the machine-readable spec,
+both generated from the code so they never drift from what the server does:
 
-Errors are always `{"error": "<what went wrong>"}` with 400/401/404/409.
+- **Swagger UI** — `http://localhost:8080/swagger-ui.html`
+- **OpenAPI spec** — `http://localhost:8080/v3/api-docs` (feed it to a client generator)
+
+Auth is a header: `X-API-Key` for tenant routes, `X-Admin-Token` to issue or
+revoke keys; `/health` and `/metrics` are open. The resource groups are
+**Events** (ingest, query, payload search), **Webhooks** (register, filter,
+delete), **Deliveries** (inspect, redeliver one or all), and
+**Pull-subscriptions** (durable cursors — fetch, commit, rewind). The quick
+start above shows the shape; the [walkthrough](docs/walkthrough.md) is the
+copy-paste tour. Errors are always `{"error": "<what went wrong>"}` with a
+400/401/404/409 status.
 
 ## Monitoring
 
@@ -190,13 +184,13 @@ Webhook tuning (`eventcore.webhooks` in
 
 ```bash
 cd backend
-./mvnw test            # 86 integration tests via Testcontainers (Docker required)
+./mvnw test            # integration tests via Testcontainers (Docker required)
 ./mvnw clean package   # build the jar
 ```
 
 Java 21 · Spring Boot 4 · TimescaleDB (PostgreSQL 16) · Flyway · Docker
 Compose. Package-by-feature layout under
 [backend/src/main/java/dev/eventcore](backend/src/main/java/dev/eventcore): `events`,
-`webhooks`, `deliveries`, `security`, `metrics`, with shared `api` and
-`crypto` primitives. Contributions welcome — start with the
+`webhooks`, `deliveries`, `pull`, `retention`, `security`, `metrics`, with
+shared `api` and `crypto` primitives. Contributions welcome — start with the
 [testing guide](docs/testing/README.md).

@@ -3,9 +3,9 @@
 A tenant-scoped web UI for one EventCore instance: see the pipeline, read the
 log, diagnose and recover deliveries, and watch pull consumers — without curl.
 
-![architecture] One dashboard per instance. It renders on the server and calls
-your instance with the API key from `.env.local`; the key never reaches the
-browser, and the instance needs no CORS setup.
+One dashboard per instance. It renders on the server and calls your instance
+with the API key from `.env.local`; the key never reaches the browser, and
+the instance needs no CORS setup.
 
 ## Run it
 
@@ -47,14 +47,17 @@ The log, newest first, one event per row (UTC timestamp · type badge · id).
 The outbox with status tabs (all / pending / delivered / failed) and the same
 time-range chips as Events. While any visible delivery is pending, the page
 **auto-refreshes every 3 seconds** — a retried delivery flips from pending to
-delivered before your eyes, no reload. Click any
-delivery for its **per-attempt timeline**: attempt number, status code or
-transport error, response snippet, duration, timestamp. Every failed delivery has a **Retry** button right on its list row (plus
-**Redeliver now** on the detail page), and the failed tab has
-**Redeliver all failed** for whole-outage recovery. Both requeue through the same API the curl
-examples use — the always-running dispatcher picks requeued deliveries up
-within its poll interval (1s by default), so there is nothing to "trigger":
-recovery is a state change, not a manual dispatch.
+delivered before your eyes, no reload. Click any delivery for its
+**per-attempt timeline**: attempt number, status code or transport error,
+response snippet, duration, timestamp — and while the delivery is pending,
+the detail page refreshes on the same cadence, so new attempts appear in the
+timeline as they happen. Every failed delivery has a **Retry** button right
+on its list row (plus **Redeliver now** on the detail page), and the failed
+tab has **Redeliver all failed** for whole-outage recovery. Both requeue
+through the same API the curl examples use — the always-running dispatcher
+picks requeued deliveries up within its poll interval (1s by default), so
+there is nothing to "trigger": recovery is a state change, not a manual
+dispatch.
 
 ### Webhooks `/webhooks`
 Manage subscriptions without curl: **register** (URL, optional event-type
@@ -72,5 +75,9 @@ is green; a growing number names the stuck consumer before it matters.
 ## Production build
 
 ```bash
-npm run build && npm run start   # or containerize; set the two env vars
+cd dashboard
+npm run build && npm run start   # or containerize
 ```
+
+Either way, set the same two variables `.env.local` carries: `EVENTCORE_URL`
+(defaults to `http://localhost:8080`) and `EVENTCORE_API_KEY`.

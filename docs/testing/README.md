@@ -27,7 +27,7 @@ TimescaleDB container).
 cd backend && ./mvnw test
 ```
 
-Expected: `Tests run: 86, Failures: 0, Errors: 0` (count grows with features).
+Expected: `Tests run: 101, Failures: 0, Errors: 0` (count grows with features).
 
 The suite is integration-first: every test boots the real Spring context
 against a real TimescaleDB and talks HTTP through the same API clients a user
@@ -38,11 +38,13 @@ in about a minute. What each class covers:
 |---|---|
 | `SmokeTest` | Boot, DB connectivity, migrations, `/health`, OpenAPI docs |
 | `events/EventIngestionTest` | `POST /v1/events` happy path, validation, persistence |
-| `events/EventQueryTest` | Cursor pagination, type filtering, limit rules |
+| `events/EventQueryTest` | Cursor pagination, type filtering, limit rules, `from`/`to` time ranges, payload field search (`?payload.<field>=...`) |
 | `events/EventsSchemaTest` | TimescaleDB hypertable schema |
-| `webhooks/WebhookSubscriptionsTest` | Register/list/delete, secrets shown once, filters, PATCH |
+| `webhooks/WebhookSubscriptionsTest` | Register/list/delete, secrets shown once, filters, PATCH, `payloadFields` minimization allow-list |
 | `deliveries/WebhookDeliveryTest` | Signed delivery, retries, attempt history, redelivery cycles |
-| `deliveries/DeliveryQueryTest` | Outbox listing/detail, bulk redelivery, error statuses |
+| `deliveries/DeliveryQueryTest` | Outbox listing/detail, `from`/`to` time ranges, bulk redelivery, error statuses |
+| `pull/PullSubscriptionsTest` | Named durable cursors, peek/commit exactly-once loop, start positions, type filters, rewind, fleet lag view |
+| `retention/RetentionTest` | Optional retention sweep: old-event chunk drops, delivery-history deletion, idempotence |
 | `security/ApiKeyManagementTest` | Issuance, SHA-256-only storage, revocation |
 | `security/ApiKeyAuthenticationTest` | 401 enforcement on `/v1/**`, public paths |
 | `metrics/MetricsTest` | Every exported metric |
@@ -85,7 +87,29 @@ curl -X POST http://localhost:8080/v1/webhooks \
 Every matching event you ingest is printed with its
 `X-EventCore-Signature` header.
 
-## 4. Failure and recovery drill
+## 4. Manual pull consumer
+
+To fetch events at your own pace instead of having them pushed to you, run
+the ready-made consumer (one file, standard library only):
+
+```bash
+export EVENTCORE_API_KEY=ek_...   # issue one via POST /v1/api-keys
+python3 examples/python-pull-consumer/consumer.py my-consumer beginning
+```
+
+It creates (or resumes) a durable cursor named `my-consumer` and runs the
+crash-safe fetch → process → commit loop. Kill it mid-stream and restart it:
+it resumes from the last committed cursor without losing an event (commits
+happen after each batch, so processing must tolerate at-least-once). To
+replay from an earlier point, rewind the cursor:
+
+```bash
+curl -X POST http://localhost:8080/v1/pull-subscriptions/my-consumer/rewind \
+  -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \
+  -d '{"to": "beginning"}'
+```
+
+## 5. Failure and recovery drill
 
 Reproduces a real outage and recovery — the scenario the delivery-ops API
 exists for. With the stack up and a key in `$KEY`:
@@ -105,8 +129,8 @@ exists for. With the stack up and a key in `$KEY`:
    `curl -X POST -H "X-API-Key: $KEY" -H 'Content-Type: application/json' -d '{"status":"failed"}' localhost:8080/v1/deliveries/redeliver`
    → `{"requeued": N}`.
 
-## 5. Continuous integration
+## 6. Continuous integration
 
-Every push and pull request runs `./mvnw verify` on GitHub Actions
-([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) — the full
-Testcontainers suite against a real database, no mocks.
+Every push to `main` and every pull request runs `./mvnw verify` on GitHub
+Actions ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) — the
+full Testcontainers suite against a real database, no mocks.

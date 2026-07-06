@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # End-to-end walkthrough against a running EventCore (docker compose up -d).
-# Exercises: health, key issuance, auth, ingest, query, filter, metrics,
+# Exercises: health, key issuance, auth, ingest, query, type + payload filters, metrics,
 # signed webhook delivery, delivery inspection, key revocation.
 # Exits non-zero on the first failed check.
 set -euo pipefail
@@ -40,11 +40,17 @@ echo "5. Query with a type filter"
 COUNT=$(curl -s -H "X-API-Key: $KEY" "$BASE/v1/events?type=$TYPE" | jq '.items | length')
 [ "$COUNT" = "1" ] && pass "?type=$TYPE returns exactly that event" || fail "type filter (got $COUNT items)"
 
-echo "6. Metrics are scrapeable without a key"
+echo "6. Query with a payload field filter"
+COUNT=$(curl -s -H "X-API-Key: $KEY" "$BASE/v1/events?type=$TYPE&payload.hello=world" | jq '.items | length')
+[ "$COUNT" = "1" ] && pass "?payload.hello=world matches the event" || fail "payload filter (got $COUNT items)"
+MISS=$(curl -s -H "X-API-Key: $KEY" "$BASE/v1/events?type=$TYPE&payload.hello=nope" | jq '.items | length')
+[ "$MISS" = "0" ] && pass "payload filter compares exact values" || fail "payload filter matched a wrong value"
+
+echo "7. Metrics are scrapeable without a key"
 curl -s "$BASE/metrics" | grep -q 'eventcore_events_ingested_total' \
   && pass "/metrics serves Prometheus text" || fail "/metrics"
 
-echo "7. Signed webhook delivery"
+echo "8. Signed webhook delivery"
 if command -v python3 >/dev/null 2>&1 && command -v openssl >/dev/null 2>&1; then
   LISTENER_OUT=$(mktemp)
   python3 "$SCRIPT_DIR/webhook-listener.py" "$LISTENER_PORT" > "$LISTENER_OUT" 2>&1 &
@@ -79,7 +85,7 @@ else
   echo "  SKIP webhook delivery (needs python3 + openssl)"
 fi
 
-echo "8. Revoke the key"
+echo "9. Revoke the key"
 KEY_ID=$(curl -s -X POST "$BASE/v1/api-keys" -H "X-Admin-Token: $ADMIN" \
   -H 'Content-Type: application/json' -d '{"name": "walkthrough-doomed"}' | jq -r .id)
 STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "$BASE/v1/api-keys/$KEY_ID" -H "X-Admin-Token: $ADMIN")

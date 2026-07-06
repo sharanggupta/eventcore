@@ -8,8 +8,8 @@ Prerequisites: a running stack, `curl`, and `jq`.
 
 ### 1. Issue an API key
 
-All `/v1/*` endpoints except key issuance require an API key. Mint one with
-the admin token:
+All `/v1/*` endpoints except key management (`/v1/api-keys`, which is guarded
+by the admin token instead) require an API key. Mint one:
 
 ```bash
 curl -s -X POST http://localhost:8080/v1/api-keys \
@@ -104,6 +104,10 @@ curl -s -H "X-API-Key: $KEY" 'http://localhost:8080/v1/events?limit=10' | jq .
 token — pass it back as `cursor` to continue where you left off; it is `null`
 on the last page.
 
+Bound the window with `from`/`to` (ISO-8601, e.g.
+`?from=2026-07-05T00:00:00Z&to=2026-07-06T00:00:00Z`); the same parameters
+work on `GET /v1/deliveries`.
+
 Filter by type:
 
 ```bash
@@ -122,6 +126,18 @@ curl -s -H "X-API-Key: $KEY" 'http://localhost:8080/v1/events?type=invoice.paid'
   ],
   "nextCursor": null
 }
+```
+
+Or search inside the payload with `payload.<field>=<value>`. Dotted fields
+reach nested keys, values match by their text form (so numbers work too), and
+repeated `payload.*` params AND together:
+
+```bash
+curl -s -H "X-API-Key: $KEY" 'http://localhost:8080/v1/events?payload.invoiceId=inv_7' | jq '.items | length'
+```
+
+```
+1
 ```
 
 ### 4. Receive webhooks
@@ -160,6 +176,8 @@ curl -s -X POST http://localhost:8080/v1/webhooks \
   "id": "0697096d-57f5-43f6-bb2b-fb766ab7d773",
   "createdAt": "2026-07-05T07:17:55.110511296Z",
   "url": "http://host.docker.internal:9000/hooks",
+  "eventTypes": null,
+  "payloadFields": null,
   "secret": "whsec_ldR9MjVZEUXmy2fyShSPZajiYSr79KBFle_4IVYrer8"
 }
 ```
@@ -191,8 +209,9 @@ printf '%s' '<paste the body line here>' | openssl dgst -sha256 -hmac "$SECRET"
 The hex digest matches the value after `sha256=`. Reject any delivery whose
 signature does not match — only EventCore knows the secret.
 
-If your endpoint is down, EventCore retries up to 5 times with exponential
-backoff (5s, 10s, 20s, ...). Deliveries live in a database outbox, so pending
+If your endpoint is down, EventCore makes up to 5 delivery attempts in all,
+backing off exponentially between them (5s, 10s, 20s, ...) before it gives up
+and marks the delivery failed. Deliveries live in a database outbox, so pending
 retries survive an application restart.
 
 **Operating deliveries**: list the outbox with `GET /v1/deliveries`
@@ -202,8 +221,10 @@ with `GET /v1/deliveries/{id}`, and recover with
 `POST /v1/deliveries/redeliver` with `{"status": "failed"}`).
 
 **Filtering**: register with `"eventTypes": ["order.placed"]` to receive only
-those types (omit for everything); change it later with
-`PATCH /v1/webhooks/{id}` — the subscription keeps its id and signing secret.
+those types (omit for everything), and `"payloadFields": ["orderId"]` to trim
+each delivery down to just those keys (omit to send the whole payload); change
+either later with `PATCH /v1/webhooks/{id}` — the subscription keeps its id and
+signing secret.
 
 ### 5. Clean up
 

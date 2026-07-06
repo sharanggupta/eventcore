@@ -106,21 +106,26 @@ sequenceDiagram
     Note over C,API: crash anywhere - restart resumes from the committed<br/>position, and POST /{name}/rewind replays history
 ```
 
+The operator's side of the same story is `GET /v1/pull-subscriptions`: it
+lists every consumer's committed position and lag (events remaining) — the
+fleet view the dashboard's Consumers screen renders.
+
 ## Backend components
 
-Package-by-feature; arrows are the only cross-package dependencies. Shared
-primitives (`api`, `crypto`) depend on nothing domain-shaped.
+Package-by-feature; the arrows are the complete set of cross-package
+dependencies. Shared primitives (`api`, `crypto`) depend on nothing
+domain-shaped.
 
 ```mermaid
 flowchart TD
-    events["events<br/>ingest, query, readers"]
+    events["events<br/>ingest, query (type/time/payload), readers"]
     webhooks["webhooks<br/>subscription lifecycle"]
     deliveries["deliveries<br/>outbox, dispatcher, redelivery"]
     pull["pull<br/>durable cursors"]
     security["security<br/>API keys, auth filter"]
     metrics["metrics<br/>/metrics text"]
     retention["retention<br/>rotation sweeper"]
-    api["api<br/>errors, Cursor, OpenAPI"]
+    api["api<br/>errors, Cursor, TimeBounds, OpenAPI"]
     crypto["crypto<br/>Sha256, HmacSha256, Secrets"]
 
     events --> deliveries
@@ -130,14 +135,17 @@ flowchart TD
     webhooks --> events
     deliveries --> api
     deliveries --> crypto
+    deliveries --> events
     pull --> events
     pull --> api
     security --> api
     security --> crypto
 ```
 
-`events → deliveries` is the transactional fan-out; `pull → events` is the
-oldest-first reader; `webhooks → events` reuses the type-filter vocabulary.
+`events → deliveries` is the transactional fan-out; `deliveries → events`
+closes a deliberate cycle — the outbox takes the `Event` record and snapshots
+its minimized body at enqueue time. `pull → events` is the oldest-first
+reader; `webhooks → events` reuses the type-filter vocabulary.
 
 ## Data model
 
@@ -195,13 +203,22 @@ Two deliberate non-links: `webhook_deliveries.event_id` has no foreign key
 delivery self-contained), and `pull_subscriptions` references the log only by
 cursor position.
 
+Time is the query axis: the events and deliveries lists both take `from`/`to`
+bounds (ISO-8601, parsed by the shared `api.TimeBounds`), and on `events`
+that bound is the partition column itself, so a window query touches only its
+chunks. `payload` is searchable in place — each `payload.<field>=<value>`
+parameter becomes the Postgres path extraction `payload #>> '{field}'`
+(dotted fields walk nested objects: `order.id` → `{order,id}`) compared as
+text, and repeated parameters are AND-ed. There is no payload index; the
+filters ride whatever scan the time and type bounds have already narrowed.
+
 ## Deployment (local / self-hosted)
 
 ```mermaid
 flowchart LR
     subgraph compose["docker compose"]
         APP["app :8080<br/>(backend/Dockerfile)"]
-        PG[("db :5432<br/>timescale/timescaledb-pg16<br/>volume: eventcore_data")]
+        PG[("db :5432<br/>timescale/timescaledb:latest-pg16<br/>volume: eventcore_data")]
         APP --> PG
     end
     DASHDEV["dashboard :3000<br/>npm run dev"] --> APP

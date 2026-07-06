@@ -33,7 +33,7 @@ KEY=$(curl -s -X POST http://localhost:8080/v1/api-keys \
 echo "$KEY"
 ```
 
-> `ek_...` (43 characters)
+> `ek_...` (46 characters)
 
 ## Terminal 1 — register the demo app's webhook
 
@@ -99,15 +99,25 @@ delivered the event back and the demo checked the HMAC before trusting it:
 
 **2. The dashboard shows the event.** Go to **Events**: a new `order.placed`
 row sits at the top (newest first). **Click the row** — the full payload
-expands as JSON. Try the filter box with `order.placed`; the URL becomes
-shareable (`/events?type=order.placed`).
+expands as JSON. Try the filter box with `order.placed`, or the payload
+search inputs — field `item`, value `rubber duck` — which find the order by
+what is inside it; either filter makes the URL shareable
+(`/events?type=order.placed`, `/events?pf=item&pv=rubber+duck`). Payload
+search works API-first too — `GET /v1/events?payload.item=rubber%20duck` —
+where dotted paths reach nested fields and repeated `payload.*` params AND
+together.
 
 **3. The dashboard shows the delivery.** Go to **Deliveries**: a `delivered`
 row with 1 attempt. Click it — the attempt timeline shows the `200`, the
-response time, and the timestamp.
+response time, and the timestamp. Both screens carry time-range chips (Last
+15m / 1h / 24h / 7d / All time, plus a custom from → to); the same
+`from`/`to` params work on `GET /v1/events` and `GET /v1/deliveries`.
 
 Place a few more orders and watch the **Overview** move: the events counter,
 the delivery donut, and the ingest-per-hour bar chart all update on refresh.
+The webhook you registered in terminal 1 sits under **Webhooks**, where you
+can register endpoints, edit a subscription's event-type and payload-field
+filters, or delete it — no curl needed.
 
 ## Bonus round 1 — watch a failure and fix it from the UI
 
@@ -120,13 +130,17 @@ curl -s -o /dev/null -X POST http://localhost:8080/v1/events \
   -d '{"type": "order.placed", "payload": {"orderId": "ord_doomed", "item": "anvil"}}'
 ```
 
-The dispatcher retries 5 times with exponential backoff (5s, 10s, 20s, 40s —
-about 80 seconds total). On the dashboard's **Deliveries → failed** tab the
-delivery appears with `attempts: 5`; click it to read each attempt's
-connection error. Now restart the demo app (terminal 2), click
-**Redeliver now** — the status flips to `pending`, the dispatcher retries,
-and attempt 6 lands with a `200`. That is the whole incident-recovery story,
-without a database shell.
+The dispatcher makes 5 attempts, backing off exponentially between them
+(5s, 10s, 20s, 40s — about 80 seconds total). On the dashboard's
+**Deliveries → failed** tab the delivery appears with `attempts: 5`; click it
+to read each attempt's connection error. Now restart the demo app
+(terminal 2), click **Redeliver now** — the status flips to `pending`, the
+dispatcher retries, and attempt 6 lands with a `200`. (The list view offers
+the same recovery one click earlier: an inline **Retry** beside each failed
+row, and **Redeliver all failed** to requeue every failure at once; while a
+delivery is pending the screen refreshes itself every 3 seconds, so you
+watch the flip live.) That is the whole incident-recovery story, without a
+database shell.
 
 ## Bonus round 2 — a pull consumer backfills everything
 
@@ -154,6 +168,6 @@ docker compose down -v     # or wipe it
 ## Where next
 
 - [Walkthrough](walkthrough.md) — the same ground API-first with captured responses
-- [Testing guide](testing/README.md) — the 92-test suite and the asserting e2e script
+- [Testing guide](testing/README.md) — the integration test suite and the asserting e2e script
 - [Dashboard guide](dashboard.md) — every screen explained
 - [Developer guide](development.md) — add your own feature the house way

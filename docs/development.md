@@ -8,7 +8,19 @@ The visual version of everything below: [architecture.md](architecture.md)
 
 ## The map
 
-Everything is under [`backend/src/main/java/dev/eventcore`](../backend/src/main/java/dev/eventcore),
+The monorepo's top level:
+
+- [`backend/`](../backend) — the API; the rest of this section is about it
+- [`dashboard/`](../dashboard) — the Next.js UI (see [The dashboard](#the-dashboard))
+- [`docs/`](.) — guides and product context, including this tour
+- [`examples/`](../examples) — integrations to copy: a Spring Boot orders
+  service that publishes events and verifies signed webhooks, and a Python
+  pull consumer ([examples/README.md](../examples/README.md))
+- [`scripts/`](../scripts) — `walkthrough.sh` (end-to-end assertion),
+  `webhook-listener.py` (prints deliveries for local webhook testing),
+  `export.sh` / `restore.sh` (full-database export and restore)
+
+Backend code is under [`backend/src/main/java/dev/eventcore`](../backend/src/main/java/dev/eventcore),
 one package per capability. Three conventions make any file findable:
 
 - `*Controller` — the HTTP surface (thin: validate, delegate, return a record)
@@ -22,25 +34,32 @@ one package per capability. Three conventions make any file findable:
 | `webhooks` | Subscription lifecycle: register/list/delete/filter | `webhook_subscriptions` |
 | `deliveries` | Outbox, scheduled dispatcher, attempt history, redelivery | `webhook_deliveries`, `delivery_attempts` |
 | `pull` | Named durable cursors: fetch/commit/rewind/fleet | `pull_subscriptions` |
+| `retention` | Optional rotation: a scheduled sweeper — `drop_chunks` for old event chunks, row deletes for old delivery history; keep-forever by default | (sweeps `events`, `webhook_deliveries`) |
 | `security` | API keys + the `X-API-Key` filter | `api_keys` |
 | `metrics` | `/metrics` Prometheus text | (reads the others) |
 | `api` | Shared web primitives: `ApiError`, exceptions→status mapping, `Cursor`, OpenAPI config | — |
 | `crypto` | `Sha256`, `HmacSha256`, `Secrets` | — |
 
-Each package has a `package-info.java` saying the same thing in place.
+Each package has a `package-info.java` saying the same thing in place. The one
+file outside any capability package: `HealthController` (`GET /health`), at
+the package root.
 
 ## How a request flows
 
 `POST /v1/events` end to end:
 
-1. `security.ApiKeyAuthenticationFilter` checks `X-API-Key` (`/v1/**` only;
+1. `security.ApiKeyAuthenticationFilter` checks `X-API-Key` (`/v1/**` except
+   `/v1/api-keys`, which the controller guards with `X-Admin-Token` instead;
    health, metrics, and Swagger stay public).
 2. `events.EventsController.create` calls `request.validate()` — invalid input
    throws `api.InvalidRequestException`, which `api.ApiExceptionHandler` turns
    into `400 {"error": ...}`. Controllers never build error responses.
 3. `events.EventIngestion.ingest` runs one transaction: `EventStore.append`
    inserts the event; `deliveries.DeliveryOutbox.enqueue` inserts one pending
-   delivery per matching subscription. Crash anywhere = both or neither.
+   delivery per matching subscription, snapshotting the body — trimmed to the
+   subscription's `payloadFields` allow-list if one is set (payload
+   minimization; see `DeliveryOutbox.deliverableViewOf`). Crash anywhere =
+   both or neither.
 4. Asynchronously, `deliveries.WebhookDispatcher` (a `@Scheduled` poller)
    claims due deliveries, signs the body (`X-EventCore-Signature`, HMAC via
    `crypto.HmacSha256`), POSTs it, and records the attempt; failures back off
@@ -73,8 +92,9 @@ Every feature here was built the same way — copy it:
 ```bash
 cd backend && ./mvnw test      # full suite (Docker required; ~1 min)
 ./mvnw test -Dtest=SmokeTest   # one class (from backend/)
-docker compose up --build -d   # run the product (from the repo root)
+docker compose up --build -d   # backend + TimescaleDB (from the repo root)
 ./scripts/walkthrough.sh       # assert the product end-to-end (from the repo root)
+cd dashboard && npm install && npm run dev   # the UI at :3000 (needs EVENTCORE_API_KEY in dashboard/.env.local)
 ```
 
 More detail in the [testing guide](testing/README.md).
@@ -86,7 +106,8 @@ More detail in the [testing guide](testing/README.md).
 - **No `RestClient.Builder` bean** is auto-configured — build clients with
   `RestClient.create()` or your own factory (see `WebhookDispatcher`).
 - **Hypertables can't be foreign-key targets**, which is why deliveries
-  snapshot the event body instead of joining back to `events`.
+  snapshot the event body instead of joining back to `events`. The snapshot
+  is the subscription's minimized view, not always the full payload.
 - **Keyset pagination everywhere**: `api.Cursor` encodes `(time, id)`;
   no OFFSET, ever. Newest-first for humans, oldest-first for pull consumers.
 - **Test data must not be dispatcher-food**: seed `webhook_deliveries` rows

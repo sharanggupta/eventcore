@@ -10,6 +10,8 @@ services:
       DB_USER: ${DB_USER:-eventcore}
       DB_PASSWORD: ${DB_PASSWORD:-eventcore}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      RETENTION_EVENTS_MAX_AGE: ${RETENTION_EVENTS_MAX_AGE:-0}
+      RETENTION_DELIVERY_HISTORY_MAX_AGE: ${RETENTION_DELIVERY_HISTORY_MAX_AGE:-0}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

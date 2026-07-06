@@ -41,6 +41,8 @@ Run it (port 8081), then register its webhook and wire the secret:
 
 ```bash
 # 1. register the webhook; EventCore (in Docker) reaches your app via host.docker.internal
+#    (optional: add "payloadFields": ["orderId"] to the body to deliver only
+#    those payload fields; change it later with PATCH /v1/webhooks/{id})
 WEBHOOK=$(curl -s -X POST http://localhost:8080/v1/webhooks -H "X-API-Key: $KEY" \
   -H 'Content-Type: application/json' \
   -d '{"url": "http://host.docker.internal:8081/webhooks/eventcore", "eventTypes": ["order.placed"]}')
@@ -61,4 +63,13 @@ verifies and processes it. Query the record any time:
 
 ```bash
 curl -s -H "X-API-Key: $KEY" 'http://localhost:8080/v1/events?type=order.placed' | jq .
+```
+
+That returns every `order.placed` event. To pinpoint one order, match on any
+payload field with `payload.<field>=<value>` — dotted paths reach nested
+fields, and multiple `payload.` params AND together:
+
+```bash
+curl -s -H "X-API-Key: $KEY" \
+  'http://localhost:8080/v1/events?type=order.placed&payload.item=rubber%20duck' | jq .
 ```
