@@ -224,8 +224,8 @@ class DeliveryQueryTest extends IntegrationTestBase {
 
     private void insertDeliveryFor(UUID subscription, String status, int attempts, OffsetDateTime createdAt) {
         jdbc.sql("""
-                INSERT INTO webhook_deliveries (event_id, subscription_id, body, status, attempts, created_at, next_attempt_at)
-                VALUES (:eventId, :subscriptionId, CAST(:body AS jsonb), :status, :attempts, :createdAt, NOW() + INTERVAL '1 hour')
+                INSERT INTO webhook_deliveries (event_id, subscription_id, body, status, attempts, created_at, next_attempt_at, gives_up_after)
+                VALUES (:eventId, :subscriptionId, CAST(:body AS jsonb), :status, :attempts, :createdAt, NOW() + INTERVAL '1 hour', 5)
                 """)
                 .param("eventId", UUID.randomUUID())
                 .param("subscriptionId", subscription)

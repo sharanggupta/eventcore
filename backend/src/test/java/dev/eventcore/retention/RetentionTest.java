@@ -81,9 +81,9 @@ class RetentionTest extends IntegrationTestBase {
         UUID id = UUID.randomUUID();
         jdbc.sql("""
                 INSERT INTO webhook_deliveries
-                    (id, event_id, subscription_id, body, status, created_at, next_attempt_at)
+                    (id, event_id, subscription_id, body, status, created_at, next_attempt_at, gives_up_after)
                 VALUES (:id, :eventId, :subscriptionId, CAST(:body AS jsonb), 'delivered',
-                        :createdAt, NOW() + INTERVAL '1 hour')
+                        :createdAt, NOW() + INTERVAL '1 hour', 5)
                 """)
                 .param("id", id)
                 .param("eventId", UUID.randomUUID())

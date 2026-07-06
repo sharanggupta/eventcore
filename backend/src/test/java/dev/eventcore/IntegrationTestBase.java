@@ -18,6 +18,7 @@ import java.util.UUID;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public abstract class IntegrationTestBase {
 
+    // Pinned (not latest-pg16) so CI is reproducible; bump deliberately, in step with docker-compose.
     private static final DockerImageName TIMESCALE_IMAGE = DockerImageName
             .parse("timescale/timescaledb:2.27.0-pg16")
             .asCompatibleSubstituteFor("postgres");
