@@ -1,33 +1,27 @@
 package dev.eventcore.events;
 
-import dev.eventcore.api.InvalidRequestException;
+import dev.eventcore.api.Wildcards;
 
 import java.util.List;
 
+/**
+ * The event-type routing filter: absent / empty / {@code ["*"]} mean "every type" (null internally).
+ * The null↔{@code ["*"]}↔storage mapping is owned by {@link Wildcards}; this is its event-type facing name.
+ */
 public final class EventTypes {
-
-    /** The wildcard that means "every event type", on the wire and in the request. */
-    public static final String ALL = "*";
 
     private EventTypes() {
     }
 
-    /** Returns null for "receive everything" (absent, empty, or the {@code ["*"]} wildcard); rejects blank entries. */
+    /** Returns null for "receive everything"; rejects the wildcard mixed with specifics, and blanks. */
     public static List<String> normalized(List<String> eventTypes) {
-        if (eventTypes == null || eventTypes.isEmpty() || eventTypes.equals(List.of(ALL))) {
-            return null;
-        }
-        if (eventTypes.contains(ALL)) {
-            throw new InvalidRequestException("\"*\" means all event types and cannot be combined with specific types");
-        }
-        if (eventTypes.stream().anyMatch(type -> type == null || type.isBlank())) {
-            throw new InvalidRequestException("event types must not be blank");
-        }
-        return List.copyOf(eventTypes);
+        return Wildcards.normalized(eventTypes,
+                "\"*\" means all event types and cannot be combined with specific types",
+                "event types must not be blank");
     }
 
-    /** The wire form: the internal null ("all") becomes the explicit {@code ["*"]} wildcard. */
+    /** The wire form: null ("all") becomes {@code ["*"]}. */
     public static List<String> wire(List<String> eventTypes) {
-        return eventTypes == null ? List.of(ALL) : eventTypes;
+        return Wildcards.wire(eventTypes);
     }
 }
