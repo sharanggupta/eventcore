@@ -214,7 +214,8 @@ signature does not match — only EventCore knows the secret.
 If your endpoint is down, EventCore makes up to 5 delivery attempts in all,
 backing off exponentially between them (5s, 10s, 20s, ...) before it gives up
 and marks the delivery failed. Deliveries live in a database outbox, so pending
-retries survive an application restart.
+retries survive an application restart. A redeliver (below) starts a fresh
+cycle — the 5-attempt budget and the backoff ladder reset from the beginning.
 
 **Operating deliveries**: list the outbox with `GET /v1/deliveries`
 (`?status=failed` for dead letters), inspect a delivery's per-attempt history

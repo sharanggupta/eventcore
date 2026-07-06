@@ -33,11 +33,11 @@ one package per capability. Three conventions make any file findable:
 | `events` | Ingestion, querying, oldest-first readers, `EventIngestion` (the append+fan-out transaction) | `events` (hypertable) |
 | `webhooks` | Subscription lifecycle: register/list/delete/filter | `webhook_subscriptions` |
 | `deliveries` | Outbox, scheduled dispatcher, attempt history, redelivery | `webhook_deliveries`, `delivery_attempts` |
-| `pull` | Named durable cursors: fetch/commit/rewind/fleet | `pull_subscriptions` |
+| `pull` | Named durable cursors: fetch/commit/rewind/fleet. `PullSubscription` is the internal read-model; `PullSubscriptionResponse` is the wire shape; the fleet view reports position as `"beginning"` or a timestamp | `pull_subscriptions` |
 | `retention` | Optional rotation: a scheduled sweeper — `drop_chunks` for old event chunks, row deletes for old delivery history; keep-forever by default | (sweeps `events`, `webhook_deliveries`) |
 | `security` | API keys + the `X-API-Key` filter | `api_keys` |
 | `metrics` | `/metrics` Prometheus text | (reads the others) |
-| `api` | Shared web primitives: `ApiError`, exceptions→status mapping, `Cursor`, OpenAPI config | — |
+| `api` | Shared web primitives: `ApiError` + the `{"error"}` contract, `ApiExceptionHandler` (exception→status, with a catch-all so nothing escapes the shape), keyset `Cursor`, `TimeBounds`, `Wildcards` (the one owner of the all-vs-list filter rule — `EventTypes`/`PayloadFields` delegate), OpenAPI config | — |
 | `crypto` | `Sha256`, `HmacSha256`, `Secrets` | — |
 
 Each package has a `package-info.java` saying the same thing in place. The one
@@ -53,13 +53,19 @@ the package root.
    health, metrics, and Swagger stay public).
 2. `events.EventsController.create` calls `request.validate()` — invalid input
    throws `api.InvalidRequestException`, which `api.ApiExceptionHandler` turns
-   into `400 {"error": ...}`. Controllers never build error responses.
+   into `400 {"error": ...}`. Every error takes this path — domain exceptions
+   and framework failures alike (malformed JSON, a non-UUID path variable, an
+   unknown route, a wrong method, an unhandled 500) all come back as
+   `{"error": ...}` through the handler's mappings and its catch-all;
+   `api.ApiErrorContractTest` pins it. Controllers never build error responses.
 3. `events.EventIngestion.ingest` runs one transaction: `EventStore.append`
-   inserts the event; `deliveries.DeliveryOutbox.enqueue` inserts one pending
-   delivery per matching subscription, snapshotting the body — trimmed to the
-   subscription's `payloadFields` allow-list if one is set (payload
-   minimization; see `DeliveryOutbox.deliverableViewOf`). Crash anywhere =
-   both or neither.
+   inserts the event, then `events.EventSink.enqueue` fans it out. `events`
+   owns that port; `deliveries.DeliveryOutbox implements EventSink` and inserts
+   one pending delivery per matching subscription, snapshotting the body —
+   trimmed to the subscription's `payloadFields` allow-list if one is set
+   (payload minimization; see `DeliveryOutbox.deliverableViewOf`). So `events`
+   depends on no sibling capability and the package graph stays acyclic. Crash
+   anywhere = both or neither.
 4. Asynchronously, `deliveries.WebhookDispatcher` (a `@Scheduled` poller)
    claims due deliveries, signs the body (`X-EventCore-Signature`, HMAC via
    `crypto.HmacSha256`), POSTs it, and records the attempt; failures back off
@@ -79,7 +85,11 @@ Every feature here was built the same way — copy it:
    Migrations are append-only; never edit an applied one.
 3. **Green**: request record with `validate()` → store method with the SQL →
    controller method. Error paths throw the `api` exceptions; new status codes
-   need a handler entry in `ApiExceptionHandler`.
+   need a handler entry in `ApiExceptionHandler`. Reuse the primitives instead
+   of reinventing them: keyset pagination is `api.Cursor`, time bounds are
+   `api.TimeBounds`, and an all-or-specific-list filter is `api.Wildcards`
+   (see how `EventTypes` and `PayloadFields` delegate) — never re-derive the
+   `null`↔`["*"]` mapping.
 4. **Swagger**: one `@Operation(summary = ...)` per endpoint, `@Tag` per
    controller.
 5. **Verify like a user**: `docker compose up --build -d` and curl it —

@@ -76,7 +76,7 @@ sequenceDiagram
         alt 2xx
             Disp->>DB: delivered + attempt recorded
         else failure
-            Disp->>DB: attempt recorded, backoff doubles - failed after 5
+            Disp->>DB: attempt recorded, backoff doubles - failed after max-attempts (default 5)
         end
     end
 
@@ -113,39 +113,42 @@ fleet view the dashboard's Consumers screen renders.
 ## Backend components
 
 Package-by-feature; the arrows are the complete set of cross-package
-dependencies. Shared primitives (`api`, `crypto`) depend on nothing
+dependencies, and they form a DAG — every capability points inward toward
+`events` and the shared `api`/`crypto` primitives, which depend on nothing
 domain-shaped.
 
 ```mermaid
 flowchart TD
-    events["events<br/>ingest, query (type/time/payload), readers"]
+    events["events<br/>ingest, query (type/time/payload), readers,<br/>EventSink port"]
     webhooks["webhooks<br/>subscription lifecycle"]
     deliveries["deliveries<br/>outbox, dispatcher, redelivery"]
     pull["pull<br/>durable cursors"]
     security["security<br/>API keys, auth filter"]
     metrics["metrics<br/>/metrics text"]
     retention["retention<br/>rotation sweeper"]
-    api["api<br/>errors, Cursor, TimeBounds, OpenAPI"]
+    api["api<br/>errors, Cursor, TimeBounds, Wildcards, OpenAPI"]
     crypto["crypto<br/>Sha256, HmacSha256, Secrets"]
 
-    events --> deliveries
     events --> api
     webhooks --> api
     webhooks --> crypto
     webhooks --> events
+    deliveries -->|implements events.EventSink| events
     deliveries --> api
     deliveries --> crypto
-    deliveries --> events
     pull --> events
     pull --> api
     security --> api
     security --> crypto
 ```
 
-`events → deliveries` is the transactional fan-out; `deliveries → events`
-closes a deliberate cycle — the outbox takes the `Event` record and snapshots
-its minimized body at enqueue time. `pull → events` is the oldest-first
-reader; `webhooks → events` reuses the type-filter vocabulary.
+`events` owns an outbound port, `EventSink` (one method, `enqueue`), and
+depends on no other capability: `EventIngestion` runs `EventStore.append` then
+`sink.enqueue(...)` in one transaction. `deliveries.DeliveryOutbox implements
+EventSink`, snapshotting the `Event`'s minimized body per matching subscription
+at enqueue time — so the fan-out edge points one way, `deliveries → events`, and
+the graph stays acyclic. `pull → events` is the oldest-first reader;
+`webhooks → events` reuses the type-filter vocabulary.
 
 ## Data model
 
@@ -171,7 +174,8 @@ erDiagram
         jsonb body "minimized snapshot"
         text status "pending | delivered | failed"
         int attempts
-        int gives_up_after "redelivery raises this"
+        int gives_up_after "give-up budget; set by app, no DB default (V16)"
+        int cycle_start_attempts "backoff exponent counts from here (V15)"
         timestamptz next_attempt_at
     }
     delivery_attempts {
@@ -191,7 +195,7 @@ erDiagram
         text name PK
         timestamptz position_time "null = beginning"
         uuid position_id
-        jsonb event_types
+        jsonb event_types "null = all (API returns [*])"
     }
 
     webhook_subscriptions ||--o{ webhook_deliveries : "fan-out (cascade)"
@@ -202,6 +206,13 @@ Two deliberate non-links: `webhook_deliveries.event_id` has no foreign key
 (TimescaleDB hypertables cannot be FK targets — the body snapshot makes the
 delivery self-contained), and `pull_subscriptions` references the log only by
 cursor position.
+
+The `event_types` and `payload_fields` columns store `null` for "everything",
+so matching stays a fast `event_types IS NULL OR jsonb_exists(...)`. That
+`null` is a storage detail: `api.Wildcards` is the one place that maps it to
+the wire, so a response always renders `["*"]` or an explicit list — never a
+bare null — and `events`, `webhooks`, and `pull` can't drift on what `["*"]`
+means.
 
 Time is the query axis: the events and deliveries lists both take `from`/`to`
 bounds (ISO-8601, parsed by the shared `api.TimeBounds`), and on `events`
@@ -218,7 +229,7 @@ filters ride whatever scan the time and type bounds have already narrowed.
 flowchart LR
     subgraph compose["docker compose"]
         APP["app :8080<br/>(backend/Dockerfile)"]
-        PG[("db :5432<br/>timescale/timescaledb:latest-pg16<br/>volume: eventcore_data")]
+        PG[("db :5432<br/>timescale/timescaledb:2.27.0-pg16 (pinned)<br/>volume: eventcore_data")]
         APP --> PG
     end
     DASHDEV["dashboard :3000<br/>npm run dev"] --> APP

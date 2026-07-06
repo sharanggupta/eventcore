@@ -131,7 +131,8 @@ curl -s -o /dev/null -X POST http://localhost:8080/v1/events \
 ```
 
 The dispatcher makes 5 attempts, backing off exponentially between them
-(5s, 10s, 20s, 40s — about 80 seconds total). On the dashboard's
+(5s, 10s, 20s, 40s — about 75s of backoff, ~80s wall-clock including the 1s
+poll loop). On the dashboard's
 **Deliveries → failed** tab the delivery appears with `attempts: 5`; click it
 to read each attempt's connection error. Now restart the demo app
 (terminal 2), click **Redeliver now** — the status flips to `pending`, the

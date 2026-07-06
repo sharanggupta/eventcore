@@ -27,7 +27,8 @@ TimescaleDB container).
 cd backend && ./mvnw test
 ```
 
-Expected: `Tests run: 101, Failures: 0, Errors: 0` (count grows with features).
+Expected: `BUILD SUCCESS` with `Failures: 0, Errors: 0` (~110 tests today, and
+the count grows with features — match on zero failures, not the total).
 
 The suite is integration-first: every test boots the real Spring context
 against a real TimescaleDB and talks HTTP through the same API clients a user
@@ -37,6 +38,7 @@ in about a minute. What each class covers:
 | Test class | Covers |
 |---|---|
 | `SmokeTest` | Boot, DB connectivity, migrations, `/health`, OpenAPI docs |
+| `api/ApiErrorContractTest` | Every error path — domain and framework (malformed JSON, non-UUID path var, unknown route, wrong method) — returns the one shape `{"error": ...}` |
 | `events/EventIngestionTest` | `POST /v1/events` happy path, validation, persistence |
 | `events/EventQueryTest` | Cursor pagination, type filtering, limit rules, `from`/`to` time ranges, payload field search (`?payload.<field>=...`) |
 | `events/EventsSchemaTest` | TimescaleDB hypertable schema |

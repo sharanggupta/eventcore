@@ -69,7 +69,8 @@ delivery history. The list shows each endpoint's filters at a glance.
 
 ### Consumers `/consumers`
 Every pull subscription with its **lag** (events not yet committed past,
-respecting the consumer's type filter), position, and filters. A lag of zero
+respecting the consumer's type filter), its position (`beginning`, or the
+timestamp it has committed up to), and its event-type filter. A lag of zero
 is green; a growing number names the stuck consumer before it matters.
 
 ## Production build
