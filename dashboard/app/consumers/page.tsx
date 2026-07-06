@@ -27,8 +27,9 @@ export default async function ConsumersPage() {
               {consumer.position === "beginning" ? "beginning" : ago(consumer.position)}
             </span>
             <span className="flex flex-wrap gap-1">
-              {consumer.eventTypes?.map((type) => <TypeBadge key={type} type={type} />) ??
-                <span className="text-xs text-slate-500">all types</span>}
+              {consumer.eventTypes.includes("*")
+                ? <span className="text-xs text-slate-500">all types</span>
+                : consumer.eventTypes.map((type) => <TypeBadge key={type} type={type} />)}
             </span>
           </div>
         ))}

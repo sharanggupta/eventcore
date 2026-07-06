@@ -176,12 +176,14 @@ curl -s -X POST http://localhost:8080/v1/webhooks \
   "id": "0697096d-57f5-43f6-bb2b-fb766ab7d773",
   "createdAt": "2026-07-05T07:17:55.110511296Z",
   "url": "http://host.docker.internal:9000/hooks",
+  "eventTypes": ["*"],
+  "payloadFields": ["*"],
   "secret": "whsec_ldR9MjVZEUXmy2fyShSPZajiYSr79KBFle_4IVYrer8"
 }
 ```
 
-This subscription set no filters, so `eventTypes` and `payloadFields` are
-absent — absence means every event type, delivered with its full payload.
+This subscription set no filters, so `eventTypes` and `payloadFields` come back
+as `["*"]` — the wildcard for every event type, delivered with its full payload.
 Like API keys, the `secret` is shown only at registration — it never appears
 in `GET /v1/webhooks`. Now post an event and watch the listener terminal:
 
@@ -221,10 +223,10 @@ with `GET /v1/deliveries/{id}`, and recover with
 `POST /v1/deliveries/redeliver` with `{"status": "failed"}`).
 
 **Filtering**: register with `"eventTypes": ["order.placed"]` to receive only
-those types (omit for everything), and `"payloadFields": ["orderId"]` to trim
-each delivery down to just those keys (omit to send the whole payload); change
-either later with `PATCH /v1/webhooks/{id}` — the subscription keeps its id and
-signing secret.
+those types (`["*"]` or omit for everything), and `"payloadFields": ["orderId"]`
+to trim each delivery down to just those keys (`["*"]` or omit for the whole
+payload); change either later with `PATCH /v1/webhooks/{id}` — the subscription
+keeps its id and signing secret.
 
 ### 5. Clean up
 

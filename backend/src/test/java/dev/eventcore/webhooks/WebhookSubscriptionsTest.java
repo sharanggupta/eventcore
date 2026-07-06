@@ -45,22 +45,39 @@ class WebhookSubscriptionsTest extends IntegrationTestBase {
     }
 
     @Test
-    void aNoFilterSubscriptionOmitsTheEmptyFilterFieldsFromItsJson() {
-        String registeredAsJson = registerWebhook("""
+    void aNoFilterSubscriptionReportsAllAsTheWildcard() {
+        RegisteredWebhook plain = registerWebhook("""
                 {"url": "https://example.com/hooks/plain"}
-                """).body(String.class);
-        assertThat(registeredAsJson).doesNotContain("eventTypes").doesNotContain("payloadFields");
+                """).body(RegisteredWebhook.class);
+        assertThat(plain.eventTypes()).containsExactly("*");
+        assertThat(plain.payloadFields()).containsExactly("*");
 
-        String listedAsJson = api().get().uri("/v1/webhooks").retrieve().body(String.class);
-        assertThat(listedAsJson).doesNotContain("eventTypes").doesNotContain("payloadFields");
+        assertThat(listWebhooks()).singleElement().satisfies(listed -> {
+            assertThat(listed.eventTypes()).containsExactly("*");
+            assertThat(listed.payloadFields()).containsExactly("*");
+        });
     }
 
     @Test
-    void aFilteredSubscriptionKeepsItsFilterFieldsInItsJson() {
-        String registeredAsJson = registerWebhook("""
-                {"url": "https://example.com/hooks/filtered", "eventTypes": ["order.placed"], "payloadFields": ["orderId"]}
-                """).body(String.class);
-        assertThat(registeredAsJson).contains("\"eventTypes\"").contains("\"payloadFields\"");
+    void anExplicitWildcardSubscribesToEveryType() {
+        RegisteredWebhook wild = registerWebhook("""
+                {"url": "https://example.com/hooks/wild", "eventTypes": ["*"]}
+                """).body(RegisteredWebhook.class);
+        assertThat(wild.eventTypes()).containsExactly("*");
+
+        postEvent("order.placed");
+        postEvent("user.created");
+        assertThat(deliveryCountFor(wild.id())).isEqualTo(2);
+    }
+
+    @Test
+    void theWildcardCannotBeMixedWithSpecificTypes() {
+        ResponseEntity<ApiError> response = registerWebhookExpectingRejection("""
+                {"url": "https://example.com/hooks/x", "eventTypes": ["order.placed", "*"]}
+                """);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().error())
+                .isEqualTo("\"*\" means all event types and cannot be combined with specific types");
     }
 
     @Test

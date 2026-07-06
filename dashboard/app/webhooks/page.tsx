@@ -25,12 +25,14 @@ export default async function WebhooksPage() {
                data-testid="webhook-row">
             <span className="mono truncate text-sm text-slate-200">{webhook.url}</span>
             <span className="flex flex-wrap gap-1">
-              {webhook.eventTypes?.map((type) => <TypeBadge key={type} type={type} />) ??
-                <span className="text-xs text-slate-500">all</span>}
+              {webhook.eventTypes.includes("*")
+                ? <span className="text-xs text-slate-500">all</span>
+                : webhook.eventTypes.map((type) => <TypeBadge key={type} type={type} />)}
             </span>
             <span className="flex flex-wrap gap-1">
-              {webhook.payloadFields?.map((field) => <TypeBadge key={field} type={field} />) ??
-                <span className="text-xs text-slate-500">full payload</span>}
+              {webhook.payloadFields.includes("*")
+                ? <span className="text-xs text-slate-500">full payload</span>
+                : webhook.payloadFields.map((field) => <TypeBadge key={field} type={field} />)}
             </span>
             <span className="text-xs text-slate-500">{ago(webhook.createdAt)}</span>
             <span className="flex items-center justify-end gap-1">

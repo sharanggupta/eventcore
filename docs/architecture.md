@@ -161,8 +161,8 @@ erDiagram
         uuid id PK
         text url
         text secret "signs deliveries"
-        jsonb event_types "null = all (API omits the field)"
-        jsonb payload_fields "null = full payload (API omits the field)"
+        jsonb event_types "null = all (API returns [*])"
+        jsonb payload_fields "null = full payload (API returns [*])"
     }
     webhook_deliveries {
         uuid id PK

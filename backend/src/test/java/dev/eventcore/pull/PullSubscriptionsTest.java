@@ -183,7 +183,9 @@ class PullSubscriptionsTest extends IntegrationTestBase {
         assertThat(backfiller.lagEvents()).isEqualTo(2);
         assertThat(backfiller.position()).isNotEqualTo("beginning");
         assertThat(OffsetDateTime.parse(backfiller.position())).isNotNull();
+        assertThat(backfiller.eventTypes()).containsExactly("*");
         assertThat(statusOf(fleet, "picky").position()).isEqualTo("beginning");
+        assertThat(statusOf(fleet, "picky").eventTypes()).containsExactly("fleet.a", "fleet.b");
         assertThat(statusOf(fleet, "live-tail").lagEvents()).isZero();
         assertThat(statusOf(fleet, "picky").lagEvents()).isEqualTo(2);
     }

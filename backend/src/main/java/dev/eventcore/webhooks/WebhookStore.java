@@ -1,5 +1,7 @@
 package dev.eventcore.webhooks;
 
+import dev.eventcore.events.EventTypes;
+
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.ObjectMapper;
@@ -23,15 +25,16 @@ class WebhookStore {
     }
 
     RegisteredWebhook register(String url, List<String> eventTypes, List<String> payloadFields) {
-        RegisteredWebhook webhook = RegisteredWebhook.now(url, eventTypes, payloadFields);
+        RegisteredWebhook webhook = RegisteredWebhook.now(url,
+                EventTypes.wire(eventTypes), PayloadFields.wire(payloadFields));
         jdbc.sql("INSERT INTO webhook_subscriptions (id, created_at, url, secret, event_types, payload_fields) "
                         + "VALUES (:id, :createdAt, :url, :secret, CAST(:eventTypes AS jsonb), CAST(:payloadFields AS jsonb))")
                 .param("id", webhook.id())
                 .param("createdAt", webhook.createdAt())
                 .param("url", webhook.url())
                 .param("secret", webhook.secret())
-                .param("eventTypes", asJson(webhook.eventTypes()), Types.VARCHAR)
-                .param("payloadFields", asJson(webhook.payloadFields()), Types.VARCHAR)
+                .param("eventTypes", asJson(eventTypes), Types.VARCHAR)
+                .param("payloadFields", asJson(payloadFields), Types.VARCHAR)
                 .update();
         return webhook;
     }
@@ -76,8 +79,8 @@ class WebhookStore {
                 row.getObject("id", UUID.class),
                 row.getObject("created_at", OffsetDateTime.class),
                 row.getString("url"),
-                asEventTypes(row.getString("event_types")),
-                asEventTypes(row.getString("payload_fields")));
+                EventTypes.wire(asEventTypes(row.getString("event_types"))),
+                PayloadFields.wire(asEventTypes(row.getString("payload_fields"))));
     }
 
     private String asJson(List<String> eventTypes) {

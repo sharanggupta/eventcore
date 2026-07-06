@@ -40,7 +40,7 @@ export type PullSubscriptionStatus = {
   name: string;
   position: string; // "beginning" or an ISO-8601 timestamp
   lagEvents: number;
-  eventTypes?: string[];
+  eventTypes: string[]; // ["*"] means all types
   createdAt: string;
 };
 
@@ -48,8 +48,8 @@ export type Webhook = {
   id: string;
   createdAt: string;
   url: string;
-  eventTypes?: string[];
-  payloadFields?: string[];
+  eventTypes: string[]; // ["*"] means all event types
+  payloadFields: string[]; // ["*"] means the full payload
 };
 
 export type RegisteredWebhook = Webhook & { secret: string };

@@ -3,6 +3,7 @@ package dev.eventcore.pull;
 import dev.eventcore.api.Cursor;
 import dev.eventcore.api.InvalidRequestException;
 import dev.eventcore.events.EventStore;
+import dev.eventcore.events.EventTypes;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,7 +38,7 @@ class PullSubscriptionsController {
     @ResponseStatus(HttpStatus.CREATED)
     PullSubscription create(@RequestBody CreatePullSubscriptionRequest request) {
         request.validate();
-        return subscriptions.create(request.name(), request.startingPoint(), request.subscribedTypes());
+        return wired(subscriptions.create(request.name(), request.startingPoint(), request.subscribedTypes()));
     }
 
     @Operation(summary = "Fetch the next batch oldest-first; does not advance the cursor")
@@ -51,13 +52,19 @@ class PullSubscriptionsController {
     @Operation(summary = "Advance the cursor to a fetched batch's nextCursor (at-least-once)")
     @PostMapping("/{name}/commit")
     PullSubscription commit(@PathVariable String name, @RequestBody CommitRequest request) {
-        return subscriptions.reposition(name, request.committedPosition());
+        return wired(subscriptions.reposition(name, request.committedPosition()));
     }
 
     @Operation(summary = "Rewind to the beginning or a timestamp; the consumer replays from there")
     @PostMapping("/{name}/rewind")
     PullSubscription rewind(@PathVariable String name, @RequestBody RewindRequest request) {
-        return subscriptions.reposition(name, request.target());
+        return wired(subscriptions.reposition(name, request.target()));
+    }
+
+    /** The create/commit/rewind responses report their filter as the wire form (["*"] for all types). */
+    private PullSubscription wired(PullSubscription subscription) {
+        return new PullSubscription(subscription.name(), subscription.position(),
+                EventTypes.wire(subscription.eventTypes()), subscription.createdAt());
     }
 
     @Operation(summary = "Every consumer's position and lag - who is keeping up, who is stuck")
@@ -72,7 +79,7 @@ class PullSubscriptionsController {
                 subscription.name(),
                 position == null ? "beginning" : position.time().toString(),
                 events.countAfter(position, subscription.eventTypes()),
-                subscription.eventTypes(),
+                EventTypes.wire(subscription.eventTypes()),
                 subscription.createdAt());
     }
 
