@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { revalidatePath } from "next/cache";
-import { redeliver, redeliverAllFailed } from "@/lib/eventcore";
 import { GlassCard, StatusBadge, ago } from "@/components/ui";
 import { listDeliveries, resolveTimeRange } from "@/lib/eventcore";
 import { TimeRange } from "@/components/time-range";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { redeliverAction, redeliverAllFailedAction } from "./actions";
 
 const TABS = ["all", "pending", "delivered", "failed"] as const;
 
@@ -47,11 +46,7 @@ export default async function DeliveriesPage({ searchParams }: {
       {hasPending && <AutoRefresh seconds={3} />}
 
       {active === "failed" && page.items.length > 0 && (
-        <form action={async () => {
-          "use server";
-          await redeliverAllFailed();
-          revalidatePath("/deliveries");
-        }}>
+        <form action={redeliverAllFailedAction}>
           <button className="glass px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-white/10"
                   data-testid="redeliver-all">
             Redeliver all failed ({page.items.length}{page.nextCursor ? "+" : ""})
@@ -78,11 +73,7 @@ export default async function DeliveriesPage({ searchParams }: {
             <span className="text-xs text-slate-500">{ago(delivery.createdAt)}</span>
             <span>
               {delivery.status === "failed" && (
-                <form action={async () => {
-                  "use server";
-                  await redeliver(delivery.id);
-                  revalidatePath("/deliveries");
-                }}>
+                <form action={redeliverAction.bind(null, delivery.id)}>
                   <button className="rounded-xl px-3 py-1.5 text-xs font-medium text-cyan-300 transition hover:bg-cyan-400/10"
                           data-testid="retry-one">
                     Retry

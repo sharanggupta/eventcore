@@ -14,6 +14,11 @@ export default async function EventsPage({ searchParams }: {
     payloadField: pf, payloadValue: pv,
   });
 
+  const eventsHref = (extra: Record<string, string | undefined> = {}) =>
+    `/events?${new URLSearchParams(
+      Object.entries({ type, pf, pv, since, from, to, ...extra }).filter(([, v]) => v) as [string, string][],
+    )}`;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -59,14 +64,14 @@ export default async function EventsPage({ searchParams }: {
       <div className="flex items-center gap-3">
         {(cursor || undefined) && (
           <Link
-            href={`/events?${new URLSearchParams(Object.entries({ type, pf, pv, since, from, to }).filter(([, v]) => v) as [string, string][])}`}
+            href={eventsHref()}
             className="glass px-4 py-2 text-sm text-slate-300 transition hover:bg-white/10">
             ⟵ Newest
           </Link>
         )}
         {page.nextCursor && (
           <Link
-            href={`/events?${new URLSearchParams(Object.entries({ type, pf, pv, since, from, to, cursor: page.nextCursor }).filter(([, v]) => v) as [string, string][])}`}
+            href={eventsHref({ cursor: page.nextCursor })}
             className="glass px-4 py-2 text-sm text-cyan-300 transition hover:bg-white/10"
             data-testid="older-page"
           >
