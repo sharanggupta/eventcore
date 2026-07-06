@@ -1,0 +1,34 @@
+# Keep the issue tracker actionable: it holds bug reports and feature
+# requests, not questions. Blank issues are off so everything arrives with
+# the context a maintainer needs to act; the links below route everything
+# else where it belongs.
+blank_issues_enabled: false
+
+contact_links:
+  - name: Questions & support
+    url: https://github.com/sharanggupta/eventcore/discussions
+    about: >-
+      Not sure if it's a bug? Stuck on a webhook signature, an API key, or a
+      pull-subscription cursor? Ask in Discussions — that keeps the tracker
+      for confirmed bugs and feature requests.
+
+  - name: Reproduce it first, then read the guides
+    url: https://github.com/sharanggupta/eventcore/blob/main/docs/testing/README.md
+    about: >-
+      `./scripts/walkthrough.sh` asserts the product end-to-end from a fresh
+      clone; the testing guide and five-minute walkthrough show every command
+      with real output. A bug that reproduces there is a great bug report.
+
+  - name: Contributing a fix or feature
+    url: https://github.com/sharanggupta/eventcore/blob/main/docs/development.md
+    about: >-
+      The house method — failing integration test first, append-only Flyway
+      migration, then request record → store → controller — lives here. Follow
+      it and open a PR; no need to file an issue first for small changes.
+
+  - name: Report a security vulnerability
+    url: https://github.com/sharanggupta/eventcore/security/advisories/new
+    about: >-
+      EventCore signs webhooks and hashes API keys at rest — please don't
+      disclose weaknesses in public issues. Open a private security advisory
+      and we'll coordinate a fix.

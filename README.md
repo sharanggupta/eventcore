@@ -114,6 +114,8 @@ captured output) or let the script prove everything at once:
 | [Testing guide](docs/testing/README.md) | Reproducible test suite, e2e script, failure/recovery drill |
 | [Architecture](docs/architecture.md) | Mermaid diagrams as code: system, event lifecycle, components, data model |
 | [Developer guide](docs/development.md) | Codebase tour, request lifecycle, how to add a feature |
+| [Contributing](CONTRIBUTING.md) | Ways to contribute, the five-minute local setup, the house rules |
+| [Security](SECURITY.md) | Reporting a vulnerability, and the security model |
 | [Integration examples](examples/README.md) | Runnable Spring Boot and Python apps that use EventCore end-to-end |
 | [Dashboard guide](docs/dashboard.md) | The tenant web UI: run it, every screen explained |
 | [Market positioning](docs/product/market-positioning.md) | Cited competitor pricing and where EventCore stands |
@@ -133,8 +135,14 @@ revoke keys; `/health` and `/metrics` are open. The resource groups are
 delete), **Deliveries** (inspect, redeliver one or all), and
 **Pull-subscriptions** (durable cursors — fetch, commit, rewind). The quick
 start above shows the shape; the [walkthrough](docs/walkthrough.md) is the
-copy-paste tour. Errors are always `{"error": "<what went wrong>"}` with a
-400/401/404/409 status.
+copy-paste tour. Errors are always `{"error": "<what went wrong>"}` — every
+path, including framework errors like malformed JSON or an unknown route.
+
+Filter fields (`eventTypes`, `payloadFields`) are always present in responses:
+`["*"]` for all, or a specific list. On input, omit them, `[]`, or `["*"]` all
+mean "all". The fleet view (`GET /v1/pull-subscriptions`) reports each pull
+consumer's position as `beginning` or a plain timestamp plus its lag — so you
+can see who is keeping up and who is stuck at a glance.
 
 ## Monitoring
 
@@ -191,6 +199,12 @@ cd backend
 Java 21 · Spring Boot 4 · TimescaleDB (PostgreSQL 16) · Flyway · Docker
 Compose. Package-by-feature layout under
 [backend/src/main/java/dev/eventcore](backend/src/main/java/dev/eventcore): `events`,
-`webhooks`, `deliveries`, `pull`, `retention`, `security`, `metrics`, with
-shared `api` and `crypto` primitives. Contributions welcome — start with the
-[testing guide](docs/testing/README.md).
+`webhooks`, `deliveries`, `pull`, `retention`, `security`, `metrics`. The
+shared `api` package holds the primitives every feature reuses — the
+`{"error": ...}` contract, keyset `Cursor`s, `TimeBounds`, and `Wildcards`
+(the one owner of the all-vs-list filter rule, so `events` and `webhooks` can
+never disagree on what `["*"]` means) — plus `crypto` for hashing and signing.
+
+Contributions welcome — the [developer guide](docs/development.md) is the
+codebase map and the house method; the [contributing guide](CONTRIBUTING.md)
+is the quick path in.

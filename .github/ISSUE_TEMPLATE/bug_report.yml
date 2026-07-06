@@ -1,0 +1,159 @@
+name: Bug report
+description: Something in EventCore behaves differently than it should — a wrong response, a delivery that never arrives, a crash on boot.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. EventCore is a small system
+        you run yourself, so a good report is one we can reproduce on our own
+        machine — the more of the fields below you fill in, the faster that goes.
+
+        Before filing, a quick gut check that saves everyone a round trip:
+
+        - Reproduce it against a clean stack: `docker compose down -v && docker compose up --build -d`, then `curl http://localhost:8080/health` should print `OK`.
+        - Every EventCore error is `{"error": "<what went wrong>"}` with a 400/401/404/409 status — the exact string is usually the whole diagnosis, so please paste it verbatim below rather than paraphrasing.
+        - If the API rejected your request, `http://localhost:8080/swagger-ui.html` shows the contract the server actually enforces.
+
+        Not a bug? Auth headers (`X-API-Key`, `X-Admin-Token`), retention, or
+        "how do I…" questions are usually answered in the
+        [walkthrough](../blob/main/docs/walkthrough.md) and
+        [testing guide](../blob/main/docs/testing/README.md) — Discussions is the
+        better home for those.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit SHA
+      description: >-
+        The commit you're on — `git rev-parse --short HEAD` — or the release tag.
+        "latest main" isn't enough to reproduce a build-dependent bug.
+      placeholder: "0dea9f3 (or v0.1.0)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How are you running EventCore?
+      description: The bundled Docker Compose stack (`docker compose up`) is the supported path; anything else, tell us what you changed in "Anything else".
+      options:
+        - Docker Compose (the bundled stack)
+        - Backend jar built with ./mvnw clean package, my own Postgres/TimescaleDB
+        - Container image on my own orchestrator (Kubernetes, Nomad, ECS, …)
+        - Other (describe in "Anything else")
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did and what EventCore actually did in response. One concrete run, not a summary of several.
+      placeholder: |
+        Registered a webhook with an eventTypes filter and ingested a matching
+        event. GET /v1/deliveries shows the delivery stuck at status "pending"
+        and it's never POSTed to my listener, even after a minute.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+      description: The behavior you were counting on. If it's spelled out in the docs, a link helps.
+      placeholder: |
+        The dispatcher polls every second, so I expected the delivery to move to
+        "delivered" (or start accumulating failed attempts) within a few seconds.
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-body
+    attributes:
+      label: Error response and HTTP status
+      description: >-
+        If a request returned an error, paste the exact response body and status
+        code. EventCore always answers `{"error": "…"}` — copy the string as-is;
+        it's usually the whole diagnosis. Leave blank if no request errored (e.g.
+        a delivery that silently never arrives).
+      render: text
+      placeholder: |
+        HTTP/1.1 400 Bad Request
+        {"error": "type must not be blank"}
+    validations:
+      required: false
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: >-
+        The exact `curl` calls (or dashboard clicks) that trigger it, in order,
+        against a fresh `docker compose up -d` stack. Redact real secrets, but
+        keep placeholders realistic so the shape is clear. This is the single
+        most useful field — a repro we can paste into a terminal usually gets a
+        same-day answer.
+      render: shell
+      placeholder: |
+        # fresh stack
+        docker compose down -v && docker compose up --build -d
+
+        # issue a key (admin token defaults to local-admin-token in .env)
+        KEY=$(curl -s -X POST http://localhost:8080/v1/api-keys \
+          -H 'X-Admin-Token: local-admin-token' -H 'Content-Type: application/json' \
+          -d '{"name": "repro"}' | jq -r .key)
+
+        # register a webhook and ingest an event that should match it
+        curl -s -X POST http://localhost:8080/v1/webhooks \
+          -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \
+          -d '{"url": "http://host.docker.internal:9000/hooks", "eventTypes": ["order.placed"]}'
+
+        curl -s -X POST http://localhost:8080/v1/events \
+          -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \
+          -d '{"type": "order.placed", "payload": {"orderId": "o_1"}}'
+
+        # the delivery never leaves "pending"
+        curl -s -H "X-API-Key: $KEY" http://localhost:8080/v1/deliveries | jq .
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant app logs
+      description: >-
+        The excerpt around the failure from `docker compose logs app` (add
+        `--since 10m` or pipe through `grep` to keep it focused). A stack trace,
+        a Flyway migration error, or a dispatcher warning here is often decisive.
+      render: text
+      placeholder: |
+        $ docker compose logs app --since 5m
+        app  | 2026-07-06T12:00:03.114Z  WARN 1 --- [   scheduling-1] d.e.deliveries.WebhookDispatcher : delivery 41 attempt 3 failed: Connection refused
+        app  | ...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I reproduced this on a clean stack (`docker compose down -v && docker compose up --build -d`).
+          required: true
+        - label: I searched existing issues and this isn't already reported.
+          required: true
+        - label: I've redacted API keys, signing secrets, and admin tokens from everything I pasted above.
+          required: true
+
+  - type: textarea
+    id: anything-else
+    attributes:
+      label: Anything else
+      description: >-
+        Host OS and architecture (Docker Desktop on macOS, Linux, arm64…),
+        non-default config (`ADMIN_TOKEN`, `RETENTION_*`, webhook tuning), a
+        changed TimescaleDB image, or whatever else feels relevant. On Linux,
+        webhooks that never arrive are often the `host.docker.internal` mapping.
+    validations:
+      required: false

@@ -1,0 +1,136 @@
+name: Feature request
+description: Propose a capability EventCore doesn't have yet. Lead with the problem, not the code.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping shape EventCore.
+
+        EventCore exists to do one job: **record every consequential system action durably
+        and convey it to all the dependents** — so you can prove what happened, keep
+        downstreams consistent, and never wonder whether something was silently dropped.
+        (The jobs and outcomes behind the product live in
+        [`docs/product/jobs.yaml`](https://github.com/sharanggupta/eventcore/blob/main/docs/product/jobs.yaml).)
+
+        The best feature requests start from a **problem someone actually hit**, not a
+        solution already sketched. Describe the situation and the outcome you want; the
+        approach is optional and negotiable. Discuss the idea in an issue **before** opening
+        a PR — that's where scope and design get agreed, and it saves you building the wrong
+        thing. How features get built once agreed:
+        [`docs/development.md`](https://github.com/sharanggupta/eventcore/blob/main/docs/development.md).
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched [existing issues](https://github.com/sharanggupta/eventcore/issues?q=is%3Aissue) and this isn't already tracked.
+          required: true
+        - label: This is a capability request, not a bug (something working incorrectly) — bugs go in the bug template.
+          required: true
+        - label: I checked the [walkthrough](https://github.com/sharanggupta/eventcore/blob/main/docs/walkthrough.md) and [API docs](https://github.com/sharanggupta/eventcore#api) — EventCore doesn't already do this.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem — what's hard or impossible today
+      description: >-
+        Describe the situation and the outcome you're after, not the feature. The strongest
+        framing names the moment it bites: "When my producer goes silent, I want to know
+        within minutes, so an incident doesn't run all night unnoticed." Concrete beats
+        abstract — real event types, real payloads, a real failure you hit.
+      placeholder: |
+        When <situation happens>, I want <the outcome I need>, so I can <the payoff>.
+
+        Today that's hard/impossible because: ...
+        The last time this bit me: ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: job
+    attributes:
+      label: Which part of the job does this serve?
+      description: >-
+        EventCore's job splits two ways (see docs/product/jobs.yaml). Pick the closest —
+        this helps us weigh the request against what the product is for.
+      options:
+        - "Forensic — retrieve/verify the account of what happened (audit, incident, dispute)"
+        - "Propagation — convey what happened to dependent systems, dependably (webhooks, pull, integrations)"
+        - "Operate — inspect, recover, and monitor the pipeline itself (outbox, redelivery, metrics)"
+        - "Retention & data handling — keeping the record within policy, export, compliance"
+        - "Dashboard — the tenant web UI"
+        - "Developer experience — docs, examples, local setup, tests"
+        - "Something else / not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: who
+    attributes:
+      label: Who is this for?
+      description: >-
+        Whose day gets better, and how often? The near-term persona is a first-party
+        platform operator running their own instance via Docker Compose, on-call, terminal-
+        native (see [`docs/product/personas/platform-operator.yaml`](https://github.com/sharanggupta/eventcore/blob/main/docs/product/personas/platform-operator.yaml)).
+        If your need is different from that, say so — it's useful signal.
+      placeholder: |
+        Role: e.g. on-call platform engineer / integration owner / auditor
+        How often the problem shows up: e.g. every delivery incident / once per new consumer
+        Rough scale, if relevant: events/day, number of subscriptions, consumers
+    validations:
+      required: true
+
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed approach (optional)
+      description: >-
+        If you have a shape in mind, sketch it — but the problem above matters more, and the
+        design is open. EventCore is a header-authed HTTP API over TimescaleDB: `X-API-Key`
+        for tenant routes, `X-Admin-Token` for key management; errors are always
+        `{"error": "..."}`; webhooks are HMAC-SHA256 signed (`X-EventCore-Signature`).
+        Note anything relevant — a new endpoint or field, a query filter, a metric, a
+        migration (`V17` and up; migrations are append-only), a dashboard screen.
+      placeholder: |
+        Endpoint / field / metric: e.g. GET /v1/... , a new payloadFields filter, a /metrics series
+        Request / response shape (if new): ...
+        Data or schema impact, if any: ...
+        Backward compatibility: does anything existing change?
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: >-
+        What can you do today without this — even if it's ugly? A psql shell, an external
+        cron scraping `/metrics`, a wrapper script, another tool entirely? Knowing the
+        workaround tells us how much pain this removes and whether the feature earns its
+        keep in a deliberately small system.
+      placeholder: |
+        Today I work around it by: ...
+        Why that's not good enough: ...
+        Other tools/approaches I looked at: ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Logs, screenshots, links, a sketch of the payload — whatever helps. Optional.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        EventCore is deliberately small and self-hostable — not every good idea belongs in
+        the core, and "you can already do this with the API plus a few lines" is a common,
+        honest outcome. Thanks either way: a well-described problem is useful even when the
+        answer is a recipe rather than a feature.
