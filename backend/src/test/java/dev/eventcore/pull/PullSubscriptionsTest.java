@@ -35,7 +35,7 @@ class PullSubscriptionsTest extends IntegrationTestBase {
         insertEvent("second.event", now.minusSeconds(20));
         insertEvent("third.event", now.minusSeconds(10));
 
-        PullSubscription created = createSubscription("""
+        PullSubscriptionResponse created = createSubscription("""
                 {"name": "fraud-lens", "from": "beginning"}
                 """);
         assertThat(created.position()).isNull();
@@ -64,7 +64,7 @@ class PullSubscriptionsTest extends IntegrationTestBase {
         PullBatch batch = fetch("drainer", 2);
         while (!batch.items().isEmpty()) {
             seen += batch.items().size();
-            PullSubscription committed = commit("drainer", batch.nextCursor());
+            PullSubscriptionResponse committed = commit("drainer", batch.nextCursor());
             assertThat(committed.position()).isEqualTo(batch.nextCursor());
             batch = fetch("drainer", 2);
         }
@@ -124,7 +124,7 @@ class PullSubscriptionsTest extends IntegrationTestBase {
         commit("repairer", drained.nextCursor());
         assertThat(fetch("repairer", 10).items()).isEmpty();
 
-        PullSubscription rewound = rewind("repairer", "{\"to\": \"beginning\"}");
+        PullSubscriptionResponse rewound = rewind("repairer", "{\"to\": \"beginning\"}");
 
         assertThat(rewound.position()).isNull();
         assertThat(fetch("repairer", 10).items())
@@ -195,12 +195,12 @@ class PullSubscriptionsTest extends IntegrationTestBase {
                 .findFirst().orElseThrow();
     }
 
-    private PullSubscription rewind(String name, String body) {
+    private PullSubscriptionResponse rewind(String name, String body) {
         return api().post().uri("/v1/pull-subscriptions/" + name + "/rewind")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .body(PullSubscription.class);
+                .body(PullSubscriptionResponse.class);
     }
 
     @Test
@@ -256,12 +256,12 @@ class PullSubscriptionsTest extends IntegrationTestBase {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
-    private PullSubscription createSubscription(String body) {
+    private PullSubscriptionResponse createSubscription(String body) {
         return api().post().uri("/v1/pull-subscriptions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .body(PullSubscription.class);
+                .body(PullSubscriptionResponse.class);
     }
 
     private ResponseEntity<ApiError> createExpectingError(String body) {
@@ -279,12 +279,12 @@ class PullSubscriptionsTest extends IntegrationTestBase {
                 .body(PullBatch.class);
     }
 
-    private PullSubscription commit(String name, String cursor) {
+    private PullSubscriptionResponse commit(String name, String cursor) {
         return api().post().uri("/v1/pull-subscriptions/" + name + "/commit")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body("{\"cursor\": \"" + cursor + "\"}")
                 .retrieve()
-                .body(PullSubscription.class);
+                .body(PullSubscriptionResponse.class);
     }
 
     private void postEvent(String type) {

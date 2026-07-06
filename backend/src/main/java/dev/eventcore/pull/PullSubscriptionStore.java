@@ -55,15 +55,6 @@ class PullSubscriptionStore {
                 .orElseThrow(() -> new NotFoundException("pull subscription not found"));
     }
 
-    Cursor positionOf(String name) {
-        PullSubscription subscription = one(name);
-        return subscription.position() == null ? null : Cursor.decode(subscription.position());
-    }
-
-    List<String> subscribedTypesOf(String name) {
-        return one(name).eventTypes();
-    }
-
     /** Moves the cursor; a null position rewinds to the beginning of the log. */
     PullSubscription reposition(String name, Cursor position) {
         int updated = jdbc.sql("UPDATE pull_subscriptions "

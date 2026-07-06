@@ -36,35 +36,30 @@ class PullSubscriptionsController {
     @Operation(summary = "Create a named cursor starting at the beginning, now, or a timestamp")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    PullSubscription create(@RequestBody CreatePullSubscriptionRequest request) {
+    PullSubscriptionResponse create(@RequestBody CreatePullSubscriptionRequest request) {
         request.validate();
-        return wired(subscriptions.create(request.name(), request.startingPoint(), request.subscribedTypes()));
+        return PullSubscriptionResponse.of(
+                subscriptions.create(request.name(), request.startingPoint(), request.subscribedTypes()));
     }
 
     @Operation(summary = "Fetch the next batch oldest-first; does not advance the cursor")
     @GetMapping("/{name}/events")
     PullBatch fetch(@PathVariable String name, @RequestParam(defaultValue = "100") int limit) {
         requireValidLimit(limit);
-        return PullBatch.of(events.ascendingAfter(
-                subscriptions.positionOf(name), subscriptions.subscribedTypesOf(name), limit));
+        PullSubscription subscription = subscriptions.one(name);
+        return PullBatch.of(events.ascendingAfter(subscription.cursor(), subscription.eventTypes(), limit));
     }
 
     @Operation(summary = "Advance the cursor to a fetched batch's nextCursor (at-least-once)")
     @PostMapping("/{name}/commit")
-    PullSubscription commit(@PathVariable String name, @RequestBody CommitRequest request) {
-        return wired(subscriptions.reposition(name, request.committedPosition()));
+    PullSubscriptionResponse commit(@PathVariable String name, @RequestBody CommitRequest request) {
+        return PullSubscriptionResponse.of(subscriptions.reposition(name, request.committedPosition()));
     }
 
     @Operation(summary = "Rewind to the beginning or a timestamp; the consumer replays from there")
     @PostMapping("/{name}/rewind")
-    PullSubscription rewind(@PathVariable String name, @RequestBody RewindRequest request) {
-        return wired(subscriptions.reposition(name, request.target()));
-    }
-
-    /** The create/commit/rewind responses report their filter as the wire form (["*"] for all types). */
-    private PullSubscription wired(PullSubscription subscription) {
-        return new PullSubscription(subscription.name(), subscription.position(),
-                EventTypes.wire(subscription.eventTypes()), subscription.createdAt());
+    PullSubscriptionResponse rewind(@PathVariable String name, @RequestBody RewindRequest request) {
+        return PullSubscriptionResponse.of(subscriptions.reposition(name, request.target()));
     }
 
     @Operation(summary = "Every consumer's position and lag - who is keeping up, who is stuck")
@@ -74,7 +69,7 @@ class PullSubscriptionsController {
     }
 
     private PullSubscriptionStatus statusOf(PullSubscription subscription) {
-        Cursor position = subscription.position() == null ? null : Cursor.decode(subscription.position());
+        Cursor position = subscription.cursor();
         return new PullSubscriptionStatus(
                 subscription.name(),
                 position == null ? "beginning" : position.time().toString(),
